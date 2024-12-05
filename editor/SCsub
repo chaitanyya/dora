@@ -140,6 +140,7 @@ void register_exporter_types() {{
     SConscript("export/SCsub")
     SConscript("gui/SCsub")
     SConscript("icons/SCsub")
+    SConscript("ai_builder/SCsub")
     SConscript("import/SCsub")
     SConscript("plugins/SCsub")
     SConscript("project_manager/SCsub")
