@@ -166,6 +166,7 @@
 #include "editor/themes/editor_scale.h"
 #include "editor/themes/editor_theme_manager.h"
 #include "editor/window_wrapper.h"
+#include "editor/chat_dock.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7538,6 +7539,8 @@ EditorNode::EditorNode() {
 	memnew(NodeDock);
 
 	FileSystemDock *filesystem_dock = memnew(FileSystemDock);
+	ChatDock *chat_dock = memnew(ChatDock);
+	
 	filesystem_dock->connect("inherit", callable_mp(this, &EditorNode::_inherit_request));
 	filesystem_dock->connect("instantiate", callable_mp(this, &EditorNode::_instantiate_request));
 	filesystem_dock->connect("display_mode_changed", callable_mp(this, &EditorNode::_save_editor_layout));
@@ -7562,6 +7565,8 @@ EditorNode::EditorNode() {
 
 	// History: Full height right, behind Node.
 	editor_dock_manager->add_dock(history_dock, TTR("History"), EditorDockManager::DOCK_SLOT_RIGHT_UL, nullptr, "History");
+
+	editor_dock_manager->add_dock(chat_dock, TTR("Chat"), EditorDockManager::DOCK_SLOT_RIGHT_UL, nullptr, "ChatDock");
 
 	// Add some offsets to left_r and main hsplits to make LEFT_R and RIGHT_L docks wider than minsize.
 	left_r_hsplit->set_split_offset(270 * EDSCALE);
