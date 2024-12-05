@@ -13,18 +13,26 @@ void SceneBuilder::_bind_methods() {
 }
 
 Node* SceneBuilder::create_scene_from_dict(const Dictionary& scene_data, Node* root) {
+    if (!root) {
+        root = memnew(Node2D);
+        root->set_name("RootNode");
+    }
+
     // Create scene hierarchy from JSON
-    _create_node_recursive(scene_data["scene"], root, root);
+    Node* scene_node = _create_node_recursive(scene_data["scene"], root, root);
     if (scene_data.has("ground")) {
         _create_node_recursive(scene_data["ground"], root, root);
     }
-    return root;
+    return scene_node;
 }
 
 Node* SceneBuilder::_create_node_recursive(const Dictionary& node_data, Node* parent, Node* root) {
     String type = node_data["type"];
     String name = node_data["name"];
     
+    // Debug log to verify node data
+    print_line("Creating node of type: " + type + ", name: " + name);
+
     Node* node = _create_node_of_type(type, name, parent, root);
     if (!node) return nullptr;
 

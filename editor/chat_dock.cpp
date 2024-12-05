@@ -30,6 +30,7 @@
 
 #include "chat_dock.h"
 
+#include "ai_builder/oai_req.h"
 #include "core/io/json.h"
 #include "modules/gdscript/gdscript.h"
 #include "scene/2d/sprite_2d.h"
@@ -52,68 +53,26 @@ void ChatDock::_text_submitted(const String &p_text) {
     // Add message to history
     messages.push_back(p_text);
     chat_history->add_text("You: " + p_text + "\n");
+    chat_history->add_text("Sending request to OpenAI...\n");
 
-    String json_str = R"({
-  "scene": {
-    "name": "JumpingCharacterScene",
-    "type": "CharacterBody2D",
-    "position": { "x": 400, "y": 100 },
-    "children": [
-        {
-            "type": "Sprite2D",
-            "name": "CharacterSprite",
-            "properties": {
-                "texture": "res://assets/sprites/knight.png",
-                "frame_width": 35,
-                "frame_height": 35,
-                "frame_index": 0
-            }
-        },
-        {
-            "type": "CollisionShape2D",
-            "name": "CharacterCollision",
-            "properties": {
-                "shape_type": "RectangleShape2D",
-                "shape_extents": { "x": 16, "y": 32 }
-            }
-        }
-    ],
-    "script": {
-      "language": "GDScript",
-      "code": "extends CharacterBody2D\n\nvar gravity = 500.0\nvar jump_force = -400.0\n\nfunc _physics_process(delta):\n    if not is_on_floor():\n        velocity.y += gravity * delta\n    if is_on_floor():\n        velocity.y = jump_force\n    move_and_slide();"
-    }
-  },
-  "ground": {
-    "name": "Ground",
-    "type": "StaticBody2D",
-    "children": [
-      {
-        "type": "CollisionShape2D",
-        "name": "GroundCollision",
-        "properties": {
-            "shape_type": "RectangleShape2D",
-            "shape_extents": { "x": 400, "y": 32 }
-        }
-      }
-    ],
-    "position": { "x": 0, "y": 200 }
-  }
-})";
+    OpenAIRequest* oai_request = memnew(OpenAIRequest);
+    add_child(oai_request);
 
-    JSON json;
-    Error err = json.parse(json_str);
-    if (err != OK) {
-        chat_history->add_text("Failed to parse scene instructions.\n");
-        return;
-    }
-
-    Dictionary scene_data = json.get_data();
+    oai_request->connect("scene_received", callable_mp(this, &ChatDock::_on_response_received));
+    oai_request->connect("request_failed", callable_mp(this, &ChatDock::_on_request_failed));
     
+    // Defer the request to ensure we're in the scene tree
+    oai_request->call_deferred("request_scene", p_text);
+
+    input_field->set_text("");
+}
+
+void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
     // Create main scene
     Node2D *root = memnew(Node2D);
 
     Ref<SceneBuilder> builder = memnew(SceneBuilder);
-    builder->create_scene_from_dict(scene_data, root);
+    builder->create_scene_from_dict(p_scene_data, root);
 
     Ref<PackedScene> packed_scene;
     packed_scene.instantiate();
@@ -124,6 +83,20 @@ void ChatDock::_text_submitted(const String &p_text) {
         chat_history->add_text("Created jumping character scene at res://jumping_character.tscn\n");
     } else {
         chat_history->add_text("Failed to save scene.\n");
+    }
+
+    OpenAIRequest* request = Object::cast_to<OpenAIRequest>(get_child(get_child_count()-1));
+    if (request) {
+        request->queue_free();
+    }
+}
+
+void ChatDock::_on_request_failed(const String &p_error) {
+    chat_history->add_text("Error: " + p_error + "\n");
+
+    OpenAIRequest* request = Object::cast_to<OpenAIRequest>(get_child(get_child_count()-1));
+    if (request) {
+        request->queue_free();
     }
 }
 

@@ -44,6 +44,8 @@ private:
     Vector<String> messages;
 
     void _text_submitted(const String &p_text);
+    void _on_response_received(const Dictionary &p_scene_data);
+    void _on_request_failed(const String &p_error);
 
 protected:
     static void _bind_methods();
