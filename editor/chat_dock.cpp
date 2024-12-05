@@ -29,8 +29,17 @@
 /**************************************************************************/
 
 #include "chat_dock.h"
-#include "scene/2d/node_2d.h" 
-#include "scene/resources/packed_scene.h" 
+
+#include "core/io/json.h"
+#include "modules/gdscript/gdscript.h"
+#include "scene/2d/sprite_2d.h"
+#include "scene/2d/physics/character_body_2d.h"
+#include "scene/2d/physics/static_body_2d.h"
+#include "scene/2d/physics/collision_shape_2d.h"
+#include "scene/resources/packed_scene.h"
+#include "scene/resources/2d/rectangle_shape_2d.h"
+
+#include "ai_builder/scene_builder.h"
 
 void ChatDock::_bind_methods() {
 }
@@ -42,38 +51,80 @@ void ChatDock::_text_submitted(const String &p_text) {
 
     // Add message to history
     messages.push_back(p_text);
-    
-    // Update chat display
     chat_history->add_text("You: " + p_text + "\n");
-    
-    // Handle scene creation command
-    if (p_text == "scene") {
-        Node2D *root = memnew(Node2D);
-        root->set_name("game");
-        
-        // Create scene tree
-        SceneTree *scene_tree = SceneTree::get_singleton();
-        ERR_FAIL_NULL(scene_tree);
-        
-        // Create packed scene
-        Ref<PackedScene> packed_scene;
-        packed_scene.instantiate();
-        packed_scene->pack(root);
-        
-        // Save the scene
-        String scene_path = "res://game.tscn";
-        Error err = ResourceSaver::save(packed_scene, scene_path);
-        if (err == OK) {
-            chat_history->add_text("Created new 2D scene 'game' at " + scene_path + "\n");
-        } else {
-            chat_history->add_text("Failed to create scene.\n");
+
+    String json_str = R"({
+  "scene": {
+    "name": "JumpingCharacterScene",
+    "type": "CharacterBody2D",
+    "position": { "x": 400, "y": 100 },
+    "children": [
+        {
+            "type": "Sprite2D",
+            "name": "CharacterSprite",
+            "properties": {
+                "texture": "res://assets/sprites/knight.png",
+                "frame_width": 35,
+                "frame_height": 35,
+                "frame_index": 0
+            }
+        },
+        {
+            "type": "CollisionShape2D",
+            "name": "CharacterCollision",
+            "properties": {
+                "shape_type": "RectangleShape2D",
+                "shape_extents": { "x": 16, "y": 32 }
+            }
         }
-        
-        memdelete(root); // Clean up the temporary root node
+    ],
+    "script": {
+      "language": "GDScript",
+      "code": "extends CharacterBody2D\n\nvar gravity = 500.0\nvar jump_force = -400.0\n\nfunc _physics_process(delta):\n    if not is_on_floor():\n        velocity.y += gravity * delta\n    if is_on_floor():\n        velocity.y = jump_force\n    move_and_slide();"
     }
+  },
+  "ground": {
+    "name": "Ground",
+    "type": "StaticBody2D",
+    "children": [
+      {
+        "type": "CollisionShape2D",
+        "name": "GroundCollision",
+        "properties": {
+            "shape_type": "RectangleShape2D",
+            "shape_extents": { "x": 400, "y": 32 }
+        }
+      }
+    ],
+    "position": { "x": 0, "y": 200 }
+  }
+})";
+
+    JSON json;
+    Error err = json.parse(json_str);
+    if (err != OK) {
+        chat_history->add_text("Failed to parse scene instructions.\n");
+        return;
+    }
+
+    Dictionary scene_data = json.get_data();
     
-    // Clear input field
-    input_field->clear();
+    // Create main scene
+    Node2D *root = memnew(Node2D);
+
+    Ref<SceneBuilder> builder = memnew(SceneBuilder);
+    builder->create_scene_from_dict(scene_data, root);
+
+    Ref<PackedScene> packed_scene;
+    packed_scene.instantiate();
+    packed_scene->pack(root);
+    
+    Error save_err = ResourceSaver::save(packed_scene, "res://jumping_character.tscn");
+    if (save_err == OK) {
+        chat_history->add_text("Created jumping character scene at res://jumping_character.tscn\n");
+    } else {
+        chat_history->add_text("Failed to save scene.\n");
+    }
 }
 
 ChatDock::ChatDock() {
