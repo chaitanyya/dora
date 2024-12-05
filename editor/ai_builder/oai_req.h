@@ -12,7 +12,6 @@ private:
     String api_key;
 
     void _on_request_completed(int p_result, int p_code, const PackedStringArray& headers, const PackedByteArray& p_data);
-    void _setup_request();  // Add this method
 
 protected:
     static void _bind_methods();

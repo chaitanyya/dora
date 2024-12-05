@@ -26,26 +26,6 @@ OpenAIRequest::OpenAIRequest() {
     }
 }
 
-void OpenAIRequest::_setup_request() {
-    // Setup after we're in the scene tree
-    http_request->connect("request_completed", callable_mp(this, &OpenAIRequest::_on_request_completed));
-    
-    // Try multiple methods to get API key
-    String api_key_value;
-    
-    // 1. Try environment variable
-    char* env_key = getenv("OPENAI_API_KEY");
-    if (env_key != nullptr) {
-        api_key_value = String(env_key);
-    }
-    
-    if (!api_key_value.is_empty()) {
-        set_api_key(api_key_value);
-    } else {
-        WARN_PRINT("OpenAI API key not found. Please set the OPENAI_API_KEY environment variable or configure it in Project Settings.");
-    }
-}
-
 Error OpenAIRequest::request_scene(const String& prompt) {
     // Prepare headers
     Vector<String> headers;
@@ -63,7 +43,7 @@ Error OpenAIRequest::request_scene(const String& prompt) {
     Array content;
     Dictionary content_item;
     content_item["type"] = "text";
-    content_item["text"] = "You are godot game engine version 4 expert, and your job is to return instructions in JSON Format that will be executed in the godot engine internally. Here is a sample request:\n\nRequest:\nCreate a character that is jumping on a surface.\n\nResponse:\n{\n  \"scene\": {\n    \"name\": \"JumpingCharacterScene\",\n    \"type\": \"CharacterBody2D\",\n    \"position\": { \"x\": 400, \"y\": 100 },\n    \"children\": [\n        {\n            \"type\": \"Sprite2D\",\n            \"name\": \"CharacterSprite\",\n            \"properties\": {\n                \"texture\": \"res://assets/sprites/knight.png\",\n                \"frame_width\": 35,\n                \"frame_height\": 35,\n                \"frame_index\": 0\n            }\n        },\n        {\n            \"type\": \"CollisionShape2D\",\n            \"name\": \"CharacterCollision\",\n            \"properties\": {\n                \"shape_type\": \"RectangleShape2D\",\n                \"shape_extents\": { \"x\": 16, \"y\": 32 }\n            }\n        }\n    ],\n    \"script\": {\n      \"language\": \"GDScript\",\n      \"code\": \"extends CharacterBody2D\\n\\nvar gravity = 500.0\\nvar jump_force = -400.0\\n\\nfunc _physics_process(delta):\\n    if not is_on_floor():\\n        velocity.y += gravity * delta\\n    if is_on_floor():\\n        velocity.y = jump_force\\n    move_and_slide();\"\n    }\n  },\n  \"ground\": {\n    \"name\": \"Ground\",\n    \"type\": \"StaticBody2D\",\n    \"children\": [\n      {\n        \"type\": \"CollisionShape2D\",\n        \"name\": \"GroundCollision\",\n        \"properties\": {\n            \"shape_type\": \"RectangleShape2D\",\n            \"shape_extents\": { \"x\": 400, \"y\": 32 }\n        }\n      }\n    ],\n    \"position\": { \"x\": 0, \"y\": 200 }\n  }\n}";
+    content_item["text"] = "You are godot game engine version 4 expert, and your job is to return instructions in JSON Format that will be executed in the godot engine internally. Here is a sample request:\n\nRequest:\nCreate a character that is jumping on a surface.\n\nResponse:\n{\n  \"tasks\": [\n    {\n      \"action\": \"create_node\",\n      \"name\": \"MainScene\",\n      \"type\": \"Node2D\"\n    },\n    {\n      \"action\": \"create_node\",\n      \"name\": \"JumpingCharacterScene\",\n      \"type\": \"CharacterBody2D\"\n    },\n    {\n      \"action\": \"set_property\",\n      \"node\": \"JumpingCharacterScene\",\n      \"property\": \"position\",\n      \"value\": { \"x\": 400, \"y\": 100 }\n    },\n    {\n      \"action\": \"attach_script\",\n      \"node\": \"JumpingCharacterScene\",\n      \"language\": \"GDScript\",\n      \"code\": \"extends CharacterBody2D\\n\\nvar gravity = 500.0\\nvar jump_force = -400.0\\n\\nfunc _physics_process(delta):\\n    if not is_on_floor():\\n        velocity.y += gravity * delta\\n    if is_on_floor():\\n        velocity.y = jump_force\\n    move_and_slide()\"\n    },\n    {\n      \"action\": \"add_child\",\n      \"parent\": \"MainScene\",\n      \"child\": \"JumpingCharacterScene\"\n    },\n    {\n      \"action\": \"create_node\",\n      \"name\": \"CharacterSprite\",\n      \"type\": \"Sprite2D\"\n    },\n    {\n      \"action\": \"set_properties\",\n      \"node\": \"CharacterSprite\",\n      \"properties\": {\n        \"texture\": \"res://assets/sprites/knight.png\",\n        \"frame_width\": 35,\n        \"frame_height\": 35,\n        \"frame_index\": 0\n      }\n    },\n    {\n      \"action\": \"add_child\",\n      \"parent\": \"JumpingCharacterScene\",\n      \"child\": \"CharacterSprite\"\n    },\n    {\n      \"action\": \"create_node\",\n      \"name\": \"CharacterCollision\",\n      \"type\": \"CollisionShape2D\"\n    },\n    {\n      \"action\": \"set_properties\",\n      \"node\": \"CharacterCollision\",\n      \"properties\": {\n        \"shape_type\": \"RectangleShape2D\",\n        \"shape_extents\": { \"x\": 16, \"y\": 32 }\n      }\n    },\n    {\n      \"action\": \"add_child\",\n      \"parent\": \"JumpingCharacterScene\",\n      \"child\": \"CharacterCollision\"\n    },\n    {\n      \"action\": \"create_node\",\n      \"name\": \"Ground\",\n      \"type\": \"StaticBody2D\"\n    },\n    {\n      \"action\": \"set_property\",\n      \"node\": \"Ground\",\n      \"property\": \"position\",\n      \"value\": { \"x\": 0, \"y\": 200 }\n    },\n    {\n      \"action\": \"add_child\",\n      \"parent\": \"MainScene\",\n      \"child\": \"Ground\"\n    },\n    {\n      \"action\": \"create_node\",\n      \"name\": \"GroundCollision\",\n      \"type\": \"CollisionShape2D\"\n    },\n    {\n      \"action\": \"set_properties\",\n      \"node\": \"GroundCollision\",\n      \"properties\": {\n        \"shape_type\": \"RectangleShape2D\",\n        \"shape_extents\": { \"x\": 400, \"y\": 32 }\n      }\n    },\n    {\n      \"action\": \"add_child\",\n      \"parent\": \"Ground\",\n      \"child\": \"GroundCollision\"\n    }\n  ]\n}";
     content.push_back(content_item);
 
     system_message["content"] = content;
