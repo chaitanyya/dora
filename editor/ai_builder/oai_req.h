@@ -18,7 +18,7 @@ protected:
 
 public:
     OpenAIRequest();
-    Error request_scene(const String& prompt);
+    Error request_scene(const String& prompt, const Dictionary& project_resources, const Dictionary& current_scene);
     void set_api_key(const String& key);
 };
 
