@@ -1,4 +1,4 @@
-# Godot Engine
+# Godora - Godot Engine with Cursor like capabilities
 
 <p align="center">
   <a href="https://godotengine.org">
