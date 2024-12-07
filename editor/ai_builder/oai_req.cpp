@@ -35,7 +35,7 @@ Error OpenAIRequest::request_scene(const String& prompt, const Dictionary& proje
 
     // Prepare request body
     Dictionary request_data;
-    request_data["model"] = "gpt-4o";
+    request_data["model"] = "gpt-4o-mini";
 
     Array messages;
     Dictionary system_message;
@@ -44,11 +44,24 @@ Error OpenAIRequest::request_scene(const String& prompt, const Dictionary& proje
     Array content;
     Dictionary content_item;
     content_item["type"] = "text";
-    content_item["text"] = OAIPromptTemplate::format_prompt(prompt, project_resources, current_scene);
+    content_item["text"] = OAIPromptTemplate::format_prompt(project_resources, current_scene);
     content.push_back(content_item);
 
     system_message["content"] = content;
     messages.push_back(system_message);
+
+    Dictionary user_message;
+    user_message["role"] = "user";
+    
+    Array user_content;
+    Dictionary user_content_item;
+    user_content_item["type"] = "text";
+    user_content_item["text"] = prompt;
+    user_content.push_back(user_content_item);
+    
+    user_message["content"] = user_content;
+    messages.push_back(user_message);
+
     request_data["messages"] = messages;
 
     // Add additional parameters
@@ -63,9 +76,6 @@ Error OpenAIRequest::request_scene(const String& prompt, const Dictionary& proje
     request_data["response_format"] = response_format;
 
     String json_str = JSON::stringify(request_data);
-
-    print_line("Sending OpenAI request with data: " + json_str);
-    print_line("booo: " + json_str);
     
     // Make request
     Error err = http_request->request(

@@ -7,11 +7,13 @@
 #include "scene/2d/animated_sprite_2d.h"
 #include "scene/resources/atlas_texture.h"
 #include "core/config/project_settings.h"
-#include "scene/resources/2d/rectangle_shape_2d.h"
-#include "scene/resources/2d/circle_shape_2d.h"
 #include "scene/2d/camera_2d.h"
 #include "editor/plugins/tiles/tile_set_atlas_source_editor.h"
 
+// 2D shapes
+#include "scene/resources/2d/rectangle_shape_2d.h"
+#include "scene/resources/2d/circle_shape_2d.h"
+#include "scene/resources/2d/world_boundary_shape_2d.h"
 
 SceneBuilder::SceneBuilder() {
 }
@@ -56,7 +58,7 @@ void SceneBuilder::_process_task(const Dictionary &task, Node *root) {
 		}
 	} else if (action == "attach_script") {
 		String node_name = task["node"];
-		Node *node = root->get_node_or_null(NodePath(node_name));
+		Node *node = root->find_child(NodePath(node_name));
 
 		if (node) {
 			String language = task["language"];
@@ -315,8 +317,12 @@ void SceneBuilder::_setup_collision_shape(CollisionShape2D *collision, const Dic
             shape->set_radius(radius);
             collision->set_shape(shape);
             collision->set_position(position);
-        }
-        else {
+        } else if (props["shape_type"] == "WorldBoundaryShape2D") {
+            Ref<WorldBoundaryShape2D> shape;
+            shape.instantiate();
+            collision->set_shape(shape);
+            collision->set_position(position);
+        } else {
             print_line("Unsupported shape type: " + String(props["shape_type"]));
         }
     }

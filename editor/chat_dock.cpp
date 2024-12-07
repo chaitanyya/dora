@@ -137,9 +137,9 @@ void ChatDock::_text_submitted(const String &p_text) {
 	gather_project_resources(project_resources);
 	gather_current_scene_info(current_scene);
 
-    // log all animations that are available in the scene;
+	// log all animations that are available in the scene;
 
-	OpenAIRequest* oai_request = memnew(OpenAIRequest);
+	OpenAIRequest *oai_request = memnew(OpenAIRequest);
 	add_child(oai_request);
 
 	oai_request->connect("scene_received", callable_mp(this, &ChatDock::_on_response_received));
@@ -148,141 +148,56 @@ void ChatDock::_text_submitted(const String &p_text) {
 	// Defer the request to ensure we're in the scene trewe
 	oai_request->call_deferred("request_scene", p_text, project_resources, current_scene);
 
-// 	String json_str = R"({
-//     "tasks": [
-//         {
-//             "action": "create_node",
-//             "name": "Game",
-//             "class_name": "Node2D"
-//         },
-//         {
-//             "action": "create_node",
-//             "name": "CharacterBody2D",
-//             "class_name": "CharacterBody2D"
-//         },
-//         {
-//             "action": "add_child",
-//             "parent": "Game",
-//             "child": "CharacterBody2D"
-//         },
-//         {
-//             "action": "create_node",
-//             "name": "PlayerSprite",
-//             "class_name": "AnimatedSprite2D"
-//         },
-//         {
-//             "action": "set_properties",
-//             "node": "PlayerSprite",
-//             "properties": {
-//                 "sprite_frames": {
-//                     "texture": "res://assets/sprites/knight.png",
-//                     "frames_horizontal_count": 8,
-//                     "frames_vertical_count": 8,
-//                     "frames_count": 4,
-//                     "animation_name": "walk",
-//                     "frame_duration": 0.1,
-//                     "autoplay": true
-//                 },
-//                 "position": {
-//                     "x": 0,
-//                     "y": 0
-//                 }
-//             }
-//         },
-//         {
-//             "action": "add_child",
-//             "parent": "CharacterBody2D",
-//             "child": "PlayerSprite"
-//         },
-//         {
-//             "action": "create_node",
-//             "name": "CharacterCollision",
-//             "class_name": "CollisionShape2D"
-//         },
-//         {
-//             "action": "set_properties",
-//             "node": "CharacterCollision",
-//             "properties": {
-//                 "shape_type": "CircleShape2D",
-//                 "shape_radius": 6,
-//                 "shape_position": {"x": 0, "y": 0}
-//             }
-//         },
-//         {
-//             "action": "add_child",
-//             "parent": "CharacterBody2D",
-//             "child": "CharacterCollision"
-//         },
-//         {
-//             "action": "create_node",
-//             "name": "MainCamera",
-//             "class_name": "Camera2D"
-//         },
-//         {
-//             "action": "set_properties",
-//             "node": "MainCamera",
-//             "properties": {
-//                 "position": {"x": 0, "y": 0},
-//                 "zoom": {"x": 4, "y": 4}
-//             }
-//         },
-//         {
-//             "action": "add_child",
-//             "parent": "Game",
-//             "child": "MainCamera"
-//         },
-//         {
-//             "action": "create_node",
-//             "name": "GameTileMap",
-//             "class_name": "TileMap"
-//         },
-//         {
-//             "action": "add_child",
-//             "parent": "Game",
-//             "child": "GameTileMap"
-//         },
-//         {
-//             "action": "set_properties",
-//             "node": "GameTileMap",
-//             "properties": {
-//                 "tileset": {
-//                     "tile_width": 16,
-//                     "tile_height": 16,
-//                     "texture": "res://assets/sprites/world_tileset.png"
-//                 }
-//             }
-//         }
-//     ]
-// })";
-	// Dictionary scene_data = JSON::parse_string(json_str);
-	// _on_response_received(scene_data);
-
 	input_field->set_text("");
 }
 
 void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
-	// Create main scene
-	Node2D *root = memnew(Node2D);
-	root->set_name("RootNode");
-
-	Ref<SceneBuilder> builder = memnew(SceneBuilder);
-	builder->create_scene_from_dict(p_scene_data, root);
-
+	// TODO: remove hardcoded value
 	Ref<PackedScene> packed_scene;
-	packed_scene.instantiate();
-	packed_scene->pack(root);
 
-	Error save_err = ResourceSaver::save(packed_scene, "res://jumping_character.tscn");
-	if (save_err == OK) {
-		chat_history->add_text("Created jumping character scene at res://jumping_character.tscn\n");
-	} else {
-		chat_history->add_text("Failed to save scene.\n");
-	}
+    if (FileAccess::exists("res://main.tscn")) {
+        packed_scene = ResourceLoader::load("res://main.tscn");
+    } else {
+        packed_scene.instantiate();
+        Node2D *initial_root = memnew(Node2D);
+        initial_root->set_name("Root");
+        packed_scene->pack(initial_root);
+        memdelete(initial_root);
+    }
+	Node2D *root;
 
-	OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
-	if (request) {
-		request->queue_free();
-	}
+    Node *root_node = get_tree()->get_edited_scene_root();
+    if (root_node) {
+        root = Object::cast_to<Node2D>(root_node);
+        if (!root) {
+            chat_history->add_text("Error: Root node must be a Node2D\n");
+            return;
+        }
+    } else {
+        // Fallback to instantiating if no edited scene
+        Node *existing_root = packed_scene->instantiate();
+        root = Object::cast_to<Node2D>(existing_root);
+    }
+
+    // Update scene with new data
+    Ref<SceneBuilder> builder = memnew(SceneBuilder);
+
+    print_line("OpenAI response: " + JSON::stringify(p_scene_data));
+
+    builder->create_scene_from_dict(p_scene_data, root);
+    packed_scene->pack(root);
+
+    Error save_err = ResourceSaver::save(packed_scene, "res://main.tscn");
+    if (save_err == OK) {
+        chat_history->add_text("The scene changes have been applied.\n");
+    } else {
+        chat_history->add_text("Failed to save scene.\n");
+    }
+
+    OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
+    if (request) {
+        request->queue_free();
+    }
 }
 
 void ChatDock::_on_request_failed(const String &p_error) {
