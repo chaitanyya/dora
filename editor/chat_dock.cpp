@@ -127,17 +127,15 @@ void ChatDock::_text_submitted(const String &p_text) {
 		return;
 	}
 
-	// Add message to history
-    // In _text_submitted function
-    chat_history->push_color(get_theme_color(SNAME("accent_color"), EditorStringName(Editor)));
-    chat_history->add_text("You: ");
-    chat_history->pop(); // color
-    chat_history->add_text(p_text + "\n");
+	chat_history->push_color(get_theme_color(SNAME("accent_color"), EditorStringName(Editor)));
+	chat_history->add_text("You: ");
+	chat_history->pop(); // color
+	chat_history->add_text(p_text + "\n");
 
-    chat_history->push_color(get_theme_color(SNAME("value_color"), EditorStringName(Editor))); 
-    chat_history->add_text("Assistant: ");
-    chat_history->pop(); // color
-    chat_history->add_text("Generating instructions...\n");
+	chat_history->push_color(get_theme_color(SNAME("value_color"), EditorStringName(Editor)));
+	chat_history->add_text("Assistant: ");
+	chat_history->pop(); // color
+	chat_history->add_text("Generating instructions...\n");
 
 	Dictionary project_resources;
 	Dictionary current_scene;
@@ -163,53 +161,53 @@ void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
 	// TODO: remove hardcoded value
 	Ref<PackedScene> packed_scene;
 
-    if (FileAccess::exists("res://main.tscn")) {
-        packed_scene = ResourceLoader::load("res://main.tscn");
-    } else {
-        packed_scene.instantiate();
-        Node2D *initial_root = memnew(Node2D);
-        initial_root->set_name("Root");
-        packed_scene->pack(initial_root);
-        memdelete(initial_root);
-    }
+	if (FileAccess::exists("res://main.tscn")) {
+		packed_scene = ResourceLoader::load("res://main.tscn");
+	} else {
+		packed_scene.instantiate();
+		Node2D *initial_root = memnew(Node2D);
+		initial_root->set_name("Root");
+		packed_scene->pack(initial_root);
+		memdelete(initial_root);
+	}
 	Node2D *root;
 
-    Node *root_node = get_tree()->get_edited_scene_root();
-    if (root_node) {
-        root = Object::cast_to<Node2D>(root_node);
-        if (!root) {
-            chat_history->add_text("Error: Root node must be a Node2D\n");
-            return;
-        }
-    } else {
-        // Fallback to instantiating if no edited scene
-        Node *existing_root = packed_scene->instantiate();
-        root = Object::cast_to<Node2D>(existing_root);
-    }
+	Node *root_node = get_tree()->get_edited_scene_root();
+	if (root_node) {
+		root = Object::cast_to<Node2D>(root_node);
+		if (!root) {
+			chat_history->add_text("Error: Root node must be a Node2D\n");
+			return;
+		}
+	} else {
+		// Fallback to instantiating if no edited scene
+		Node *existing_root = packed_scene->instantiate();
+		root = Object::cast_to<Node2D>(existing_root);
+	}
 
-    // Update scene with new data
-    Ref<SceneBuilder> builder = memnew(SceneBuilder);
+	// Update scene with new data
+	Ref<SceneBuilder> builder = memnew(SceneBuilder);
 
-    print_line("OpenAI response: " + JSON::stringify(p_scene_data));
+	print_line("OpenAI response: " + JSON::stringify(p_scene_data));
 
-    builder->create_scene_from_dict(p_scene_data, root);
-    packed_scene->pack(root);
+	builder->create_scene_from_dict(p_scene_data, root);
+	packed_scene->pack(root);
 
-    Error save_err = ResourceSaver::save(packed_scene, "res://main.tscn");
-    if (save_err == OK) {
-        chat_history->push_color(get_theme_color(SNAME("success_color"), EditorStringName(Editor)));
-        chat_history->add_text("The scene changes have been applied.\n");
-    } else {
-        chat_history->push_color(get_theme_color(SNAME("error_color"), EditorStringName(Editor)));
-        chat_history->add_text("Failed to save scene.\n"); 
-    }
-    chat_history->add_text("\n");
-    chat_history->pop();
+	Error save_err = ResourceSaver::save(packed_scene, "res://main.tscn");
+	if (save_err == OK) {
+		chat_history->push_color(get_theme_color(SNAME("success_color"), EditorStringName(Editor)));
+		chat_history->add_text("The scene changes have been applied.\n");
+	} else {
+		chat_history->push_color(get_theme_color(SNAME("error_color"), EditorStringName(Editor)));
+		chat_history->add_text("Failed to save scene.\n");
+	}
+	chat_history->add_text("\n");
+	chat_history->pop();
 
-    OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
-    if (request) {
-        request->queue_free();
-    }
+	OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
+	if (request) {
+		request->queue_free();
+	}
 }
 
 void ChatDock::_on_request_failed(const String &p_error) {
