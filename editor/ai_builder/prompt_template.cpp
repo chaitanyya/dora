@@ -111,19 +111,19 @@ Response: {
     ]
 }
 
-Request: Create a tilemap for the world
+Request: Create a tilemaplayer with tileset
 Response: {
     "tasks": [
         {
             "action": "create_node",
             "name": "GameTileMap",
-            "class_name": "TileMap"
+            "class_name": "TileMapLayer"
         },
         {
             "action": "set_properties",
             "node": "GameTileMap",
             "properties": {
-                "tileset": {
+                "tile_set": {
                     "tile_width": 16,
                     "tile_height": 16,
                     "texture": "res://assets/sprites/world_tileset.png"

@@ -14,6 +14,7 @@
 #include "scene/2d/animated_sprite_2d.h"
 
 #include "ai_builder/scene_builder.h"
+#include "editor_string_names.h"
 
 void ChatDock::_bind_methods() {
 }
@@ -127,9 +128,16 @@ void ChatDock::_text_submitted(const String &p_text) {
 	}
 
 	// Add message to history
-	messages.push_back(p_text);
-	chat_history->add_text("You: " + p_text + "\n");
-	chat_history->add_text("Generating instructions...\n");
+    // In _text_submitted function
+    chat_history->push_color(get_theme_color(SNAME("accent_color"), EditorStringName(Editor)));
+    chat_history->add_text("You: ");
+    chat_history->pop(); // color
+    chat_history->add_text(p_text + "\n");
+
+    chat_history->push_color(get_theme_color(SNAME("value_color"), EditorStringName(Editor))); 
+    chat_history->add_text("Assistant: ");
+    chat_history->pop(); // color
+    chat_history->add_text("Generating instructions...\n");
 
 	Dictionary project_resources;
 	Dictionary current_scene;
@@ -189,10 +197,14 @@ void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
 
     Error save_err = ResourceSaver::save(packed_scene, "res://main.tscn");
     if (save_err == OK) {
+        chat_history->push_color(get_theme_color(SNAME("success_color"), EditorStringName(Editor)));
         chat_history->add_text("The scene changes have been applied.\n");
     } else {
-        chat_history->add_text("Failed to save scene.\n");
+        chat_history->push_color(get_theme_color(SNAME("error_color"), EditorStringName(Editor)));
+        chat_history->add_text("Failed to save scene.\n"); 
     }
+    chat_history->add_text("\n");
+    chat_history->pop();
 
     OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
     if (request) {

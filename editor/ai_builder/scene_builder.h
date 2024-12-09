@@ -30,7 +30,7 @@ class SceneBuilder : public RefCounted {
         void _handle_animated_sprite(AnimatedSprite2D *sprite, const Dictionary &props);
         void _setup_camera(Camera2D *camera, const Dictionary &props);
         void _set_generic_properties(Node *node, const Dictionary &props);
-        void _setup_tilemap(TileMap *tilemap, const Dictionary &props);
+        void _setup_tilemap(TileMapLayer *tilemaplayer, const Dictionary &props);
 
     protected:
         static void _bind_methods();

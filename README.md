@@ -1,4 +1,4 @@
-# Godora - Godot Engine with Cursor like capabilities
+# Dora - AI Game Engine
 
 <p align="center">
   <a href="https://godotengine.org">

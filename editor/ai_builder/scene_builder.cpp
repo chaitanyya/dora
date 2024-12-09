@@ -187,12 +187,12 @@ Node *SceneBuilder::_create_node_of_class(const String &class_name, const String
     return node;
 }
 
-void SceneBuilder::_setup_tilemap(TileMap *tilemap, const Dictionary &props) {
-    ERR_FAIL_NULL(tilemap);
+void SceneBuilder::_setup_tilemap(TileMapLayer *tilemaplayer, const Dictionary &props) {
+    ERR_FAIL_NULL(tilemaplayer);
 
     // Create and set up tileset
-    if (props.has("tileset")) {
-        Dictionary tileset_props = props["tileset"];
+    if (props.has("tile_set")) {
+        Dictionary tileset_props = props["tile_set"];
         Ref<TileSet> tileset;
         tileset.instantiate();
 
@@ -202,7 +202,9 @@ void SceneBuilder::_setup_tilemap(TileMap *tilemap, const Dictionary &props) {
         Vector2i tile_size = Vector2i(tile_width, tile_height);
 
         tileset->set_tile_size(Vector2(tile_size));
-        tilemap->set_tileset(tileset);
+        tilemaplayer->set_tile_set(tileset);
+
+        print_line("Setting tile set for tilemap layer");
 
         if (tileset_props.has("texture")) {
             String texture_path = tileset_props["texture"];
@@ -240,8 +242,8 @@ void SceneBuilder::_setup_node_properties(Node *node, const Dictionary &props) {
         _setup_sprite(sprite, props);
     } else if (Camera2D *camera = Object::cast_to<Camera2D>(node)) {
         _setup_camera(camera, props);
-    } else if (TileMap *tilemap = Object::cast_to<TileMap>(node)) {
-        _setup_tilemap(tilemap, props);
+    } else if (TileMapLayer *tilemaplayer = Object::cast_to<TileMapLayer>(node)) {
+        _setup_tilemap(tilemaplayer, props);
     }
 
     // Set remaining generic properties
