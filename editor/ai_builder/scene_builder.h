@@ -13,7 +13,7 @@ class SceneBuilder : public RefCounted {
 
     public:
         SceneBuilder();
-        Node* create_scene_from_dict(const Dictionary& scene_data, Node* root);
+        Node* create_scene_from_dict(const Array &tasks, Node *root);
 
     private:
         Node* _create_node_recursive(const Dictionary& node_data, Node* parent, Node* root);

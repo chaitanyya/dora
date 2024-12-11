@@ -155,52 +155,66 @@ void ChatDock::_text_submitted(const String &p_text) {
 }
 
 void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
-	// TODO: remove hardcoded value
-	Ref<PackedScene> packed_scene;
+    // Check and display message if present
+    if (p_scene_data.has("message")) {
+        String message = p_scene_data["message"];
+        _add_message(message, MESSAGE_SYSTEM);
+    }
 
-	if (FileAccess::exists("res://main.tscn")) {
-		packed_scene = ResourceLoader::load("res://main.tscn");
-	} else {
-		packed_scene.instantiate();
-		Node2D *initial_root = memnew(Node2D);
-		initial_root->set_name("Root");
-		packed_scene->pack(initial_root);
-		memdelete(initial_root);
-	}
-	Node2D *root;
+    // Only process scene if tasks are present
+    if (p_scene_data.has("tasks")) {
+        Array tasks = p_scene_data["tasks"];
+        if (!tasks.is_empty()) {
+            _process_scene_changes(tasks);
+        }
+    }
 
-	Node *root_node = get_tree()->get_edited_scene_root();
-	if (root_node) {
-		root = Object::cast_to<Node2D>(root_node);
-		if (!root) {
+    // Cleanup request object
+    OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
+    if (request) {
+        request->queue_free();
+    }
+}
+void ChatDock::_process_scene_changes(const Array &p_tasks) {
+    Ref<PackedScene> packed_scene;
+
+    if (FileAccess::exists("res://main.tscn")) {
+        packed_scene = ResourceLoader::load("res://main.tscn");
+    } else {
+        packed_scene.instantiate();
+        Node2D *initial_root = memnew(Node2D);
+        initial_root->set_name("Root");
+        packed_scene->pack(initial_root);
+        memdelete(initial_root);
+    }
+
+    Node2D *root;
+    Node *root_node = get_tree()->get_edited_scene_root();
+    
+    if (root_node) {
+        root = Object::cast_to<Node2D>(root_node);
+        if (!root) {
             _add_log("Failed to get root node.");
-			return;
-		}
-	} else {
-		// Fallback to instantiating if no edited scene
-		Node *existing_root = packed_scene->instantiate();
-		root = Object::cast_to<Node2D>(existing_root);
-	}
+            return;
+        }
+    } else {
+        Node *existing_root = packed_scene->instantiate();
+        root = Object::cast_to<Node2D>(existing_root);
+    }
 
-	// Update scene with new data
-	Ref<SceneBuilder> builder = memnew(SceneBuilder);
+    // Update scene with new data
+    Ref<SceneBuilder> builder = memnew(SceneBuilder);
+    print_line("OpenAI response: " + JSON::stringify(p_tasks));
 
-	print_line("OpenAI response: " + JSON::stringify(p_scene_data));
+    builder->create_scene_from_dict(p_tasks, root);
+    packed_scene->pack(root);
 
-	builder->create_scene_from_dict(p_scene_data, root);
-	packed_scene->pack(root);
-
-	Error save_err = ResourceSaver::save(packed_scene, "res://main.tscn");
-	if (save_err == OK) {
+    Error save_err = ResourceSaver::save(packed_scene, "res://main.tscn");
+    if (save_err == OK) {
         _add_log("The scene changes have been applied.");
     } else {
         _add_log("Failed to save scene.");
     }
-
-	OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
-	if (request) {
-		request->queue_free();
-	}
 }
 
 void ChatDock::_add_message(const String &p_text, MessageType p_type) {
@@ -228,13 +242,14 @@ void ChatDock::_add_message(const String &p_text, MessageType p_type) {
     RichTextLabel *msg_label = memnew(RichTextLabel);
     msg_label->set_use_bbcode(true);
 
-Ref<Font> mono_font = get_theme_font(SNAME("source"), EditorStringName(EditorFonts));
+    Ref<Font> mono_font = get_theme_font(SNAME("source"), EditorStringName(EditorFonts));
     msg_label->add_theme_font_override("mono_font", mono_font);
 
     msg_label->set_text(p_text);
     msg_label->set_selection_enabled(true);
     msg_label->set_h_size_flags(SIZE_EXPAND_FILL);
     msg_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
+    sender_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.9);
     msg_label->set_custom_minimum_size(Size2(100, 0));
     msg_label->set_fit_content(true);
     msg_label->set_scroll_active(false);

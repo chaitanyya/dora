@@ -21,19 +21,16 @@ SceneBuilder::SceneBuilder() {
 void SceneBuilder::_bind_methods() {
 }
 
-Node *SceneBuilder::create_scene_from_dict(const Dictionary &scene_data, Node *root) {
-	ERR_FAIL_NULL_V(root, nullptr);
+Node *SceneBuilder::create_scene_from_dict(const Array &tasks, Node *root) {
+    ERR_FAIL_NULL_V(root, nullptr);
 
-	// Process tasks sequentially
-	if (scene_data.has("tasks")) {
-		Array tasks = scene_data["tasks"];
-		for (int i = 0; i < tasks.size(); i++) {
-			Dictionary task = tasks[i];
-			_process_task(task, root);
-		}
-	}
+    // Process tasks sequentially
+    for (int i = 0; i < tasks.size(); i++) {
+        Dictionary task = tasks[i];
+        _process_task(task, root);
+    }
 
-	return root;
+    return root;
 }
 
 void SceneBuilder::_process_task(const Dictionary &task, Node *root) {

@@ -26,6 +26,7 @@ private:
     void _text_submitted(const String &p_text);
     void _on_response_received(const Dictionary &p_scene_data);
     void _on_request_failed(const String &p_error);
+    void _process_scene_changes(const Array &p_tasks);
 
     void gather_project_resources(Dictionary &p_resources);
     void gather_current_scene_info(Dictionary &p_scene_info);
