@@ -8,12 +8,13 @@
 #include "scene/2d/physics/collision_shape_2d.h"
 #include "scene/2d/physics/static_body_2d.h"
 #include "scene/2d/sprite_2d.h"
+#include "scene/gui/label.h"
+#include "scene/gui/margin_container.h"
+#include "scene/gui/option_button.h"
+#include "scene/gui/panel_container.h"
 #include "scene/resources/2d/rectangle_shape_2d.h"
 #include "scene/resources/packed_scene.h"
-#include "scene/gui/margin_container.h"
-#include "scene/gui/panel_container.h"
 #include "scene/resources/style_box_flat.h"
-#include "scene/gui/label.h"
 
 #include "scene/2d/animated_sprite_2d.h"
 
@@ -131,8 +132,8 @@ void ChatDock::_text_submitted(const String &p_text) {
 		return;
 	}
 
-	_add_message(p_text, MESSAGE_USER);
-    _add_log("Sending request to OpenAI");
+	_add_message(p_text, MESSAGE_USER, Array());
+	_add_log("Sending request to OpenAI");
 
 	Dictionary project_resources;
 	Dictionary current_scene;
@@ -155,131 +156,145 @@ void ChatDock::_text_submitted(const String &p_text) {
 }
 
 void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
-    // Check and display message if present
-    if (p_scene_data.has("message")) {
-        String message = p_scene_data["message"];
-        _add_message(message, MESSAGE_SYSTEM);
-    }
+	// Check and display message if present
+	if (p_scene_data.has("message")) {
+		String message = p_scene_data["message"];
+		Array tasks = p_scene_data.has("tasks") ? Array(p_scene_data["tasks"]) : Array();
+		_add_message(message, MESSAGE_SYSTEM, tasks);
+	}
 
-    // Only process scene if tasks are present
-    if (p_scene_data.has("tasks")) {
-        Array tasks = p_scene_data["tasks"];
-        if (!tasks.is_empty()) {
-            _process_scene_changes(tasks);
-        }
-    }
-
-    // Cleanup request object
-    OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
-    if (request) {
-        request->queue_free();
-    }
+	// Cleanup request object
+	OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
+	if (request) {
+		request->queue_free();
+	}
 }
 void ChatDock::_process_scene_changes(const Array &p_tasks) {
-    Ref<PackedScene> packed_scene;
+	Ref<PackedScene> packed_scene;
 
-    if (FileAccess::exists("res://main.tscn")) {
-        packed_scene = ResourceLoader::load("res://main.tscn");
-    } else {
-        packed_scene.instantiate();
-        Node2D *initial_root = memnew(Node2D);
-        initial_root->set_name("Root");
-        packed_scene->pack(initial_root);
-        memdelete(initial_root);
-    }
+	if (FileAccess::exists("res://main.tscn")) {
+		packed_scene = ResourceLoader::load("res://main.tscn");
+	} else {
+		packed_scene.instantiate();
+		Node2D *initial_root = memnew(Node2D);
+		initial_root->set_name("Root");
+		packed_scene->pack(initial_root);
+		memdelete(initial_root);
+	}
 
-    Node2D *root;
-    Node *root_node = get_tree()->get_edited_scene_root();
-    
-    if (root_node) {
-        root = Object::cast_to<Node2D>(root_node);
-        if (!root) {
-            _add_log("Failed to get root node.");
-            return;
-        }
-    } else {
-        Node *existing_root = packed_scene->instantiate();
-        root = Object::cast_to<Node2D>(existing_root);
-    }
+	Node2D *root;
+	Node *root_node = get_tree()->get_edited_scene_root();
 
-    // Update scene with new data
-    Ref<SceneBuilder> builder = memnew(SceneBuilder);
-    print_line("OpenAI response: " + JSON::stringify(p_tasks));
+	if (root_node) {
+		root = Object::cast_to<Node2D>(root_node);
+		if (!root) {
+			_add_log("Failed to get root node.");
+			return;
+		}
+	} else {
+		Node *existing_root = packed_scene->instantiate();
+		root = Object::cast_to<Node2D>(existing_root);
+	}
 
-    builder->create_scene_from_dict(p_tasks, root);
-    packed_scene->pack(root);
+	// Update scene with new data
+	Ref<SceneBuilder> builder = memnew(SceneBuilder);
+	print_line("OpenAI response: " + JSON::stringify(p_tasks));
 
-    Error save_err = ResourceSaver::save(packed_scene, "res://main.tscn");
-    if (save_err == OK) {
-        _add_log("The scene changes have been applied.");
-    } else {
-        _add_log("Failed to save scene.");
-    }
+	builder->create_scene_from_dict(p_tasks, root);
+	packed_scene->pack(root);
+
+	Error save_err = ResourceSaver::save(packed_scene, "res://main.tscn");
+	if (save_err == OK) {
+		_add_log("The scene changes have been applied.");
+	} else {
+		_add_log("Failed to save scene.");
+	}
 }
 
-void ChatDock::_add_message(const String &p_text, MessageType p_type) {
-    // Create container for the message
-    PanelContainer *msg_container = memnew(PanelContainer);
-    msg_container->set_h_size_flags(SIZE_SHRINK_END | SIZE_FILL);
+void ChatDock::_add_message(const String &p_text, MessageType p_type, const Array &p_tasks) {
+	// Create container for the message
+	PanelContainer *msg_container = memnew(PanelContainer);
+	msg_container->set_h_size_flags(SIZE_SHRINK_END | SIZE_FILL);
 
-    msg_container->add_theme_constant_override("margin_left", 10);
-    msg_container->add_theme_constant_override("margin_right", 10);
-    msg_container->add_theme_constant_override("margin_top", 5);
-    msg_container->add_theme_constant_override("margin_bottom", 5);
-    
-    VBoxContainer *content_vbox = memnew(VBoxContainer);
-    content_vbox->set_h_size_flags(SIZE_EXPAND_FILL);
-    
-    // Sender label
-    Label *sender_label = memnew(Label);
-    sender_label->set_text(p_type == MESSAGE_USER ? "USER" : "SYSTEM");
-    sender_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
-    sender_label->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
-    sender_label->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
-    content_vbox->add_child(sender_label);
-    
-    // Message label
-    RichTextLabel *msg_label = memnew(RichTextLabel);
-    msg_label->set_use_bbcode(true);
+	msg_container->add_theme_constant_override("margin_left", 10);
+	msg_container->add_theme_constant_override("margin_right", 10);
+	msg_container->add_theme_constant_override("margin_top", 5);
+	msg_container->add_theme_constant_override("margin_bottom", 5);
 
-    Ref<Font> mono_font = get_theme_font(SNAME("source"), EditorStringName(EditorFonts));
-    msg_label->add_theme_font_override("mono_font", mono_font);
+	VBoxContainer *content_vbox = memnew(VBoxContainer);
+	content_vbox->set_h_size_flags(SIZE_EXPAND_FILL);
 
-    msg_label->set_text(p_text);
-    msg_label->set_selection_enabled(true);
-    msg_label->set_h_size_flags(SIZE_EXPAND_FILL);
-    msg_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
-    sender_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.9);
-    msg_label->set_custom_minimum_size(Size2(100, 0));
-    msg_label->set_fit_content(true);
-    msg_label->set_scroll_active(false);
-    content_vbox->add_child(msg_label);
-    
-    // Create and configure the stylebox for the background
-    Ref<StyleBoxFlat> style = memnew(StyleBoxFlat);
-    style->set_corner_radius_all(5);
-    style->set_content_margin_all(10);
-    style->set_bg_color(Color(1, 1, 1));
-    style->set_border_color(Color(0.8, 0.8, 0.8));
-    
-    msg_container->add_theme_style_override("panel", style);
-    msg_container->add_child(content_vbox);
-    
-    message_container->add_child(msg_container);
-    scroll_container->set_v_scroll(scroll_container->get_v_scroll_bar()->get_max());
+	// Header with sender and apply button
+	HBoxContainer *header_hbox = memnew(HBoxContainer);
+	header_hbox->set_h_size_flags(SIZE_EXPAND_FILL);
+
+	HBoxContainer *left_container = memnew(HBoxContainer);
+	left_container->set_h_size_flags(SIZE_EXPAND_FILL);
+	header_hbox->add_child(left_container);
+
+	// Sender label
+	Label *sender_label = memnew(Label);
+	sender_label->set_text(p_type == MESSAGE_USER ? "USER" : "SYSTEM");
+	sender_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
+	sender_label->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
+	sender_label->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
+	left_container->add_child(sender_label);
+
+	// Add Apply button if tasks are present
+	if (!p_tasks.is_empty()) {
+		Button *apply_button = memnew(Button);
+		apply_button->set_text("Apply Changes");
+		apply_button->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
+	    apply_button->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
+	    apply_button->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
+		apply_button->set_h_size_flags(SIZE_SHRINK_END);
+		apply_button->connect(SceneStringName(pressed), callable_mp(this, &ChatDock::_process_scene_changes).bind(p_tasks));
+		header_hbox->add_child(apply_button);
+	}
+
+	content_vbox->add_child(header_hbox);
+
+	// Message label
+	RichTextLabel *msg_label = memnew(RichTextLabel);
+	msg_label->set_use_bbcode(true);
+
+	Ref<Font> mono_font = get_theme_font(SNAME("source"), EditorStringName(EditorFonts));
+	msg_label->add_theme_font_override("mono_font", mono_font);
+
+	msg_label->set_text(p_text);
+	msg_label->set_selection_enabled(true);
+	msg_label->set_h_size_flags(SIZE_EXPAND_FILL);
+	msg_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
+	sender_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.9);
+	msg_label->set_custom_minimum_size(Size2(100, 0));
+	msg_label->set_fit_content(true);
+	msg_label->set_scroll_active(false);
+	content_vbox->add_child(msg_label);
+
+	// Create and configure the stylebox for the background
+	Ref<StyleBoxFlat> style = memnew(StyleBoxFlat);
+	style->set_corner_radius_all(5);
+	style->set_content_margin_all(10);
+	style->set_bg_color(Color(1, 1, 1));
+	style->set_border_color(Color(0.8, 0.8, 0.8));
+
+	msg_container->add_theme_style_override("panel", style);
+	msg_container->add_child(content_vbox);
+
+	message_container->add_child(msg_container);
+	scroll_container->set_v_scroll(scroll_container->get_v_scroll_bar()->get_max());
 }
 
 void ChatDock::_add_log(const String &p_text) {
-    Label *note_label = memnew(Label);
-    note_label->set_text(p_text);
-    note_label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_CENTER);
-    note_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
-    note_label->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
-    
-    message_container->add_child(note_label);
-    scroll_container->set_v_scroll(scroll_container->get_v_scroll_bar()->get_max());
-}
+	Label *note_label = memnew(Label);
+	note_label->set_text(p_text);
+	note_label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_CENTER);
+	note_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
+	note_label->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
 
+	message_container->add_child(note_label);
+	scroll_container->set_v_scroll(scroll_container->get_v_scroll_bar()->get_max());
+}
 
 void ChatDock::_on_request_failed(const String &p_error) {
 	OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
@@ -288,30 +303,140 @@ void ChatDock::_on_request_failed(const String &p_error) {
 	}
 }
 
+void ChatDock::_update_selected_node_label() {
+	// Clear existing pills
+	for (int i = node_pill->get_child_count() - 1; i >= 0; i--) {
+		node_pill->get_child(i)->queue_free();
+	}
+
+	// Create container for pills
+	HBoxContainer *pills_container = memnew(HBoxContainer);
+	pills_container->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+	pills_container->add_theme_constant_override("separation", 5);
+	node_pill->add_child(pills_container);
+
+	EditorSelection *editor_selection = EditorNode::get_singleton()->get_editor_selection();
+	Array selected_nodes = editor_selection->get_selected_nodes();
+
+	static Ref<StyleBoxFlat> pill_style;
+	if (pill_style.is_null()) {
+		pill_style = memnew(StyleBoxFlat);
+		pill_style->set_corner_radius_all(8);
+		pill_style->set_content_margin_individual(8, 6, 8, 6);
+		pill_style->set_bg_color(Color(0.7, 0.7, 0.7, 0.2));
+	}
+
+	if (selected_nodes.size() > 0) {
+		for (const Variant &node_var : selected_nodes) {
+			Node *selected_node = Object::cast_to<Node>(node_var);
+			if (!selected_node) {
+				continue;
+			}
+
+			PanelContainer *pill = memnew(PanelContainer);
+			pill->add_theme_style_override("panel", pill_style);
+
+			Label *node_label = memnew(Label);
+			node_label->set_text(selected_node->get_name());
+			node_label->add_theme_font_size_override("font_size", 18);
+			node_label->set_tooltip_text(selected_node->get_path());
+			pill->add_child(node_label);
+
+			pills_container->add_child(pill);
+		}
+	} else {
+		PanelContainer *pill = memnew(PanelContainer);
+		pill->add_theme_style_override("panel", pill_style);
+
+		Label *no_selection_label = memnew(Label);
+		no_selection_label->set_text("No Node Selected");
+		no_selection_label->add_theme_font_size_override("font_size", 18);
+		no_selection_label->add_theme_color_override("font_color", Color(0.5, 0.5, 0.5));
+		pill->add_child(no_selection_label);
+
+		pills_container->add_child(pill);
+	}
+}
+
+void ChatDock::_on_selection_changed() {
+	_update_selected_node_label();
+}
+
+void ChatDock::_text_editor_gui_input(const Ref<InputEvent> &p_event) {
+	Ref<InputEventKey> k = p_event;
+
+	if (k.is_valid() && k->is_pressed()) {
+		if (k->is_action_pressed("ui_text_submit") && k->is_command_or_control_pressed()) {
+			String text = input_field->get_text().strip_edges();
+			if (!text.is_empty()) {
+				_text_submitted(text);
+			}
+			accept_event();
+		}
+	}
+}
+
 ChatDock::ChatDock() {
 	set_name("Chat");
 
 	// Replace the RichTextLabel with a VBoxContainer
-    chat_container = memnew(VBoxContainer);
-    chat_container->set_v_size_flags(SIZE_EXPAND_FILL);
-    chat_container->set_h_size_flags(SIZE_EXPAND_FILL);
-    add_child(chat_container);
+	chat_container = memnew(VBoxContainer);
+	chat_container->set_v_size_flags(SIZE_EXPAND_FILL);
+	chat_container->set_h_size_flags(SIZE_EXPAND_FILL);
+	add_child(chat_container);
 
-    // Create a ScrollContainer to handle scrolling
-    scroll_container = memnew(ScrollContainer);
-    scroll_container->set_v_size_flags(SIZE_EXPAND_FILL);
-    scroll_container->set_h_size_flags(SIZE_EXPAND_FILL);
-    chat_container->add_child(scroll_container);
+	// Create a ScrollContainer to handle scrolling
+	scroll_container = memnew(ScrollContainer);
+	scroll_container->set_v_size_flags(SIZE_EXPAND_FILL);
+	scroll_container->set_h_size_flags(SIZE_EXPAND_FILL);
+	chat_container->add_child(scroll_container);
 
-    // Add the message container
-    message_container = memnew(VBoxContainer);
-    message_container->set_h_size_flags(SIZE_EXPAND_FILL);
-    scroll_container->add_child(message_container);
+	// Add the message container
+	message_container = memnew(VBoxContainer);
+	message_container->set_h_size_flags(SIZE_EXPAND_FILL);
+	scroll_container->add_child(message_container);
 
-	// Create input field
-	input_field = memnew(LineEdit);
-	input_field->set_h_size_flags(SIZE_EXPAND_FILL);
-	input_field->set_placeholder(TTR("Type your message..."));
-	input_field->connect(SceneStringName(text_submitted), callable_mp(this, &ChatDock::_text_submitted));
-	add_child(input_field);
+	// Create and configure the stylebox for the background
+	Ref<StyleBoxFlat> input_style = memnew(StyleBoxFlat);
+	input_style->set_corner_radius_all(5);
+	input_style->set_content_margin_all(10);
+	input_style->set_bg_color(Color(1, 1, 1));
+	input_style->set_border_color(Color(0.8, 0.8, 0.8));
+	input_style->set_border_width_all(1);
+
+	PanelContainer *input_container = memnew(PanelContainer);
+	input_container->set_h_size_flags(SIZE_EXPAND_FILL);
+	input_container->set_v_size_flags(SIZE_SHRINK_END);
+	input_container->add_theme_style_override("panel", input_style);
+
+	VBoxContainer *input_vbox = memnew(VBoxContainer);
+	input_vbox->set_v_size_flags(SIZE_SHRINK_END); // Make vbox shrink to fit content
+	input_container->add_child(input_vbox);
+
+	node_pill = memnew(HBoxContainer);
+	input_vbox->add_child(node_pill);
+
+	// Connect to editor selection changes
+	EditorSelection *editor_selection = EditorNode::get_singleton()->get_editor_selection();
+	editor_selection->connect("selection_changed", callable_mp(this, &ChatDock::_on_selection_changed));
+	_update_selected_node_label();
+
+	// Create input field with custom height
+	input_field = memnew(TextEdit);
+	input_field->set_line_wrapping_mode(TextEdit::LINE_WRAPPING_BOUNDARY);
+	input_field->add_theme_color_override("background_color", Color(1, 1, 1));
+	input_field->set_context_menu_enabled(false);
+	input_field->set_highlight_all_occurrences(false);
+	input_field->set_highlight_current_line(false);
+	input_field->set_draw_tabs(false);
+	input_field->set_draw_spaces(false);
+	input_field->set_v_scroll(false);
+	input_field->set_fit_content_height_enabled(true);
+	input_field->set_custom_minimum_size(Size2(0, 30));
+	input_field->set_v_size_flags(SIZE_EXPAND_FILL);
+	input_field->set_placeholder(TTR("Ask anything (Cmd + Enter to send)"));
+	input_field->connect("gui_input", callable_mp(this, &ChatDock::_text_editor_gui_input));
+	input_vbox->add_child(input_field);
+
+	add_child(input_container);
 }
