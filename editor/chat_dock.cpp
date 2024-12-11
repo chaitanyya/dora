@@ -10,6 +10,10 @@
 #include "scene/2d/sprite_2d.h"
 #include "scene/resources/2d/rectangle_shape_2d.h"
 #include "scene/resources/packed_scene.h"
+#include "scene/gui/margin_container.h"
+#include "scene/gui/panel_container.h"
+#include "scene/resources/style_box_flat.h"
+#include "scene/gui/label.h"
 
 #include "scene/2d/animated_sprite_2d.h"
 
@@ -127,15 +131,8 @@ void ChatDock::_text_submitted(const String &p_text) {
 		return;
 	}
 
-	chat_history->push_color(get_theme_color(SNAME("accent_color"), EditorStringName(Editor)));
-	chat_history->add_text("You: ");
-	chat_history->pop(); // color
-	chat_history->add_text(p_text + "\n");
-
-	chat_history->push_color(get_theme_color(SNAME("value_color"), EditorStringName(Editor)));
-	chat_history->add_text("Assistant: ");
-	chat_history->pop(); // color
-	chat_history->add_text("Generating instructions...\n");
+	_add_message(p_text, MESSAGE_USER);
+    _add_log("Sending request to OpenAI");
 
 	Dictionary project_resources;
 	Dictionary current_scene;
@@ -176,7 +173,7 @@ void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
 	if (root_node) {
 		root = Object::cast_to<Node2D>(root_node);
 		if (!root) {
-			chat_history->add_text("Error: Root node must be a Node2D\n");
+            _add_log("Failed to get root node.");
 			return;
 		}
 	} else {
@@ -195,14 +192,10 @@ void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
 
 	Error save_err = ResourceSaver::save(packed_scene, "res://main.tscn");
 	if (save_err == OK) {
-		chat_history->push_color(get_theme_color(SNAME("success_color"), EditorStringName(Editor)));
-		chat_history->add_text("The scene changes have been applied.\n");
-	} else {
-		chat_history->push_color(get_theme_color(SNAME("error_color"), EditorStringName(Editor)));
-		chat_history->add_text("Failed to save scene.\n");
-	}
-	chat_history->add_text("\n");
-	chat_history->pop();
+        _add_log("The scene changes have been applied.");
+    } else {
+        _add_log("Failed to save scene.");
+    }
 
 	OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
 	if (request) {
@@ -210,9 +203,70 @@ void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
 	}
 }
 
-void ChatDock::_on_request_failed(const String &p_error) {
-	chat_history->add_text("Error: " + p_error + "\n");
+void ChatDock::_add_message(const String &p_text, MessageType p_type) {
+    // Create container for the message
+    PanelContainer *msg_container = memnew(PanelContainer);
+    msg_container->set_h_size_flags(SIZE_SHRINK_END | SIZE_FILL);
 
+    msg_container->add_theme_constant_override("margin_left", 10);
+    msg_container->add_theme_constant_override("margin_right", 10);
+    msg_container->add_theme_constant_override("margin_top", 5);
+    msg_container->add_theme_constant_override("margin_bottom", 5);
+    
+    VBoxContainer *content_vbox = memnew(VBoxContainer);
+    content_vbox->set_h_size_flags(SIZE_EXPAND_FILL);
+    
+    // Sender label
+    Label *sender_label = memnew(Label);
+    sender_label->set_text(p_type == MESSAGE_USER ? "USER" : "SYSTEM");
+    sender_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
+    sender_label->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
+    sender_label->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
+    content_vbox->add_child(sender_label);
+    
+    // Message label
+    RichTextLabel *msg_label = memnew(RichTextLabel);
+    msg_label->set_use_bbcode(true);
+
+Ref<Font> mono_font = get_theme_font(SNAME("source"), EditorStringName(EditorFonts));
+    msg_label->add_theme_font_override("mono_font", mono_font);
+
+    msg_label->set_text(p_text);
+    msg_label->set_selection_enabled(true);
+    msg_label->set_h_size_flags(SIZE_EXPAND_FILL);
+    msg_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
+    msg_label->set_custom_minimum_size(Size2(100, 0));
+    msg_label->set_fit_content(true);
+    msg_label->set_scroll_active(false);
+    content_vbox->add_child(msg_label);
+    
+    // Create and configure the stylebox for the background
+    Ref<StyleBoxFlat> style = memnew(StyleBoxFlat);
+    style->set_corner_radius_all(5);
+    style->set_content_margin_all(10);
+    style->set_bg_color(Color(1, 1, 1));
+    style->set_border_color(Color(0.8, 0.8, 0.8));
+    
+    msg_container->add_theme_style_override("panel", style);
+    msg_container->add_child(content_vbox);
+    
+    message_container->add_child(msg_container);
+    scroll_container->set_v_scroll(scroll_container->get_v_scroll_bar()->get_max());
+}
+
+void ChatDock::_add_log(const String &p_text) {
+    Label *note_label = memnew(Label);
+    note_label->set_text(p_text);
+    note_label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_CENTER);
+    note_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
+    note_label->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
+    
+    message_container->add_child(note_label);
+    scroll_container->set_v_scroll(scroll_container->get_v_scroll_bar()->get_max());
+}
+
+
+void ChatDock::_on_request_failed(const String &p_error) {
 	OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
 	if (request) {
 		request->queue_free();
@@ -222,13 +276,22 @@ void ChatDock::_on_request_failed(const String &p_error) {
 ChatDock::ChatDock() {
 	set_name("Chat");
 
-	// Create chat history display
-	chat_history = memnew(RichTextLabel);
-	chat_history->set_v_size_flags(SIZE_EXPAND_FILL);
-	chat_history->set_selection_enabled(true);
-	chat_history->set_context_menu_enabled(true);
-	chat_history->set_scroll_follow(true);
-	add_child(chat_history);
+	// Replace the RichTextLabel with a VBoxContainer
+    chat_container = memnew(VBoxContainer);
+    chat_container->set_v_size_flags(SIZE_EXPAND_FILL);
+    chat_container->set_h_size_flags(SIZE_EXPAND_FILL);
+    add_child(chat_container);
+
+    // Create a ScrollContainer to handle scrolling
+    scroll_container = memnew(ScrollContainer);
+    scroll_container->set_v_size_flags(SIZE_EXPAND_FILL);
+    scroll_container->set_h_size_flags(SIZE_EXPAND_FILL);
+    chat_container->add_child(scroll_container);
+
+    // Add the message container
+    message_container = memnew(VBoxContainer);
+    message_container->set_h_size_flags(SIZE_EXPAND_FILL);
+    scroll_container->add_child(message_container);
 
 	// Create input field
 	input_field = memnew(LineEdit);
