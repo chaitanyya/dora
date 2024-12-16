@@ -265,7 +265,7 @@ void ChatDock::_add_message(const String &p_text, MessageType p_type, const Arra
 	msg_label->set_selection_enabled(true);
 	msg_label->set_h_size_flags(SIZE_EXPAND_FILL);
 	msg_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
-	sender_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.9);
+    msg_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
 	msg_label->set_custom_minimum_size(Size2(100, 0));
 	msg_label->set_fit_content(true);
 	msg_label->set_scroll_active(false);
