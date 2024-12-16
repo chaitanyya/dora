@@ -2,6 +2,7 @@
 #include "core/io/json.h"
 #include "core/variant/variant.h"
 #include "prompt_template.h"
+#include "editor/editor_settings.h"
 
 OpenAIRequest::OpenAIRequest() {
     http_request = memnew(HTTPRequest);
@@ -17,13 +18,12 @@ OpenAIRequest::OpenAIRequest() {
         print_line("Successfully connected request_completed signal");
     }
 
-    // Try to load API key from environment
-    char* env_key = "YOUT_API_KEY";
-    if (env_key != nullptr) {
-        set_api_key(String(env_key));
-        print_line("API key loaded from environment");
+    String stored_key = EditorSettings::get_singleton()->get("artifical_intelligence/models/openai/api_key");
+    if (!stored_key.is_empty()) {
+        set_api_key(stored_key);
+        print_line("API key loaded from editor settings");
     } else {
-        WARN_PRINT("OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.");
+        WARN_PRINT("OpenAI API key not found. Please set it in Editor Settings -> Artifical Intelligence -> Models -> OpenAI");
     }
 }
 
@@ -35,7 +35,7 @@ Error OpenAIRequest::request_scene(const String& prompt, const Dictionary& proje
 
     // Prepare request body
     Dictionary request_data;
-    request_data["model"] = "gpt-4o-mini";
+    request_data["model"] = EditorSettings::get_singleton()->get("artifical_intelligence/models/openai/model");
 
     Array messages;
     Dictionary system_message;

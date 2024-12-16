@@ -484,6 +484,11 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	EDITOR_SETTING(Variant::INT, PROPERTY_HINT_ENUM, "interface/editor/show_update_spinner", 0, "Auto (Disabled),Enabled,Disabled")
 #endif
 
+    // AI settings
+    _initial_set("artifical_intelligence/models/openai/api_key", "", true);
+    EDITOR_SETTING_BASIC(Variant::STRING, PROPERTY_HINT_ENUM, "artifical_intelligence/models/openai/model", "gpt-4o-mini", "gpt-4,gpt-4o,gpt-4o-mini");
+
+
 	_initial_set("interface/editor/keep_screen_on", false, true);
 	EDITOR_SETTING_USAGE(Variant::INT, PROPERTY_HINT_RANGE, "interface/editor/low_processor_mode_sleep_usec", 6900, "1,100000,1", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED)
 	// Default unfocused usec sleep is for 10 FPS. Allow an unfocused FPS limit
