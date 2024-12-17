@@ -2,7 +2,7 @@
 #include "core/io/json.h"
 
 const char* AIPromptTemplate::SYSTEM_PROMPT = R"(
-You are a Godot 4 game engine expert. Produce in structions in JSON format to be executed once by the Godot engine. These instructions must adhere to the following rules:
+You are a Godot 4 game engine expert. Produce instructions in JSON format to be executed once by the Godot engine. These instructions must adhere to the following rules:
     1.  Return a JSON object with "message" string and "tasks" array.
     2.  The "message" field describes the tasks array in a human readable format with BBCode formatting, use [b], [i], [color], [code] and other relevant tags.
     3.  The "tasks" array contains instructions for the Godot engine to execute.
