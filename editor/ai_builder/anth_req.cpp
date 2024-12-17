@@ -37,17 +37,15 @@ Error AnthropicRequest::request_scene(const String& prompt, const Dictionary& pr
     // Prepare request body
     Dictionary request_data;
     request_data["model"] = EditorSettings::get_singleton()->get("artifical_intelligence/models/anthropic/model");
-    request_data["max_tokens"] = 2048;
+    request_data["max_tokens"] = 2000;
+    request_data["temperature"] = 0.1;
+    request_data["system"] = AIPromptTemplate::format_prompt(project_resources, current_scene);;
 
     Array messages;
-    Dictionary system_message;
-    system_message["role"] = "user";  // Changed from system
-    system_message["content"] = AIPromptTemplate::format_prompt(project_resources, current_scene);
-    messages.push_back(system_message);
 
     Dictionary user_message;
     user_message["role"] = "user";
-    user_message["content"] = prompt;  // Simplified content structure
+    user_message["content"] = prompt;
     messages.push_back(user_message);
 
     request_data["messages"] = messages;
