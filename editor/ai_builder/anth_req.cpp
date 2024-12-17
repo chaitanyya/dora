@@ -71,7 +71,9 @@ Error AnthropicRequest::request_scene(const String& prompt, const Dictionary& pr
 }
 
 void AnthropicRequest::_on_request_completed(int p_result, int p_code, const PackedStringArray& headers, const PackedByteArray& p_data) {
-    print_line("Request completed with result: " + itos(p_result) + ", code: " + itos(p_code));
+    print_line("Request completed with result code: " + itos(p_code));
+    print_line("Response Data:");
+    print_line(JSON::stringify(p_data));
 
     if (p_result != HTTPRequest::RESULT_SUCCESS) {
         emit_signal("request_failed", "HTTP Request failed");

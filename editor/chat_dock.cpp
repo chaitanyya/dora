@@ -133,7 +133,7 @@ void ChatDock::_text_submitted(const String &p_text) {
 	}
 
 	_add_message(p_text, MESSAGE_USER, Array());
-	_add_log("Sending request to Anthropic");
+	_add_log("Sending request to LLM");
 
 	Dictionary project_resources;
 	Dictionary current_scene;
