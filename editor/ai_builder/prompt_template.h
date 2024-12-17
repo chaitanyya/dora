@@ -4,7 +4,7 @@
 #include "core/string/ustring.h"
 #include "core/variant/typed_array.h"
 
-namespace OAIPromptTemplate {
+namespace AIPromptTemplate {
     extern const char* SYSTEM_PROMPT;
     String format_prompt(const Dictionary& project_resources, const Dictionary& current_scene);
 };

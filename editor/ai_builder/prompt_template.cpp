@@ -1,7 +1,7 @@
 #include "prompt_template.h"
 #include "core/io/json.h"
 
-const char* OAIPromptTemplate::SYSTEM_PROMPT = R"(
+const char* AIPromptTemplate::SYSTEM_PROMPT = R"(
 You are a Godot 4 game engine expert. Produce instructions in JSON format to be executed once by the Godot engine. These instructions must adhere to the following rules:
     1.  Return a JSON object with "message" string and "tasks" array.
     2.  The "message" field describes the tasks array in a human readable format with BBCode formatting, use [b], [i], [color], [code] and other relevant tags.
@@ -163,7 +163,7 @@ Response: {
 }
 )";
 
-String OAIPromptTemplate::format_prompt(const Dictionary& project_resources, const Dictionary& current_scene) {
+String AIPromptTemplate::format_prompt(const Dictionary& project_resources, const Dictionary& current_scene) {
     String formatted = String(SYSTEM_PROMPT);
     formatted = formatted.replace("{0}", JSON::stringify(project_resources));
     formatted = formatted.replace("{1}", JSON::stringify(current_scene));

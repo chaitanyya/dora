@@ -1,6 +1,6 @@
 #include "chat_dock.h"
 
-#include "ai_builder/oai_req.h"
+#include "ai_builder/anth_req.h"
 #include "core/io/json.h"
 #include "editor/editor_file_system.h"
 #include "modules/gdscript/gdscript.h"
@@ -133,7 +133,7 @@ void ChatDock::_text_submitted(const String &p_text) {
 	}
 
 	_add_message(p_text, MESSAGE_USER, Array());
-	_add_log("Sending request to OpenAI");
+	_add_log("Sending request to Anthropic");
 
 	Dictionary project_resources;
 	Dictionary current_scene;
@@ -143,14 +143,14 @@ void ChatDock::_text_submitted(const String &p_text) {
 
 	// log all animations that are available in the scene;
 
-	OpenAIRequest *oai_request = memnew(OpenAIRequest);
-	add_child(oai_request);
+	AnthropicRequest *anth_request = memnew (AnthropicRequest);
+	add_child(anth_request);
 
-	oai_request->connect("scene_received", callable_mp(this, &ChatDock::_on_response_received));
-	oai_request->connect("request_failed", callable_mp(this, &ChatDock::_on_request_failed));
+	anth_request->connect("scene_received", callable_mp(this, &ChatDock::_on_response_received));
+	anth_request->connect("request_failed", callable_mp(this, &ChatDock::_on_request_failed));
 
 	// Defer the request to ensure we're in the scene trewe
-	oai_request->call_deferred("request_scene", p_text, project_resources, current_scene);
+	anth_request->call_deferred("request_scene", p_text, project_resources, current_scene);
 
 	input_field->set_text("");
 }
@@ -164,7 +164,7 @@ void ChatDock::_on_response_received(const Dictionary &p_scene_data) {
 	}
 
 	// Cleanup request object
-	OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
+	AnthropicRequest *request = Object::cast_to<AnthropicRequest>(get_child(get_child_count() - 1));
 	if (request) {
 		request->queue_free();
 	}
@@ -297,7 +297,7 @@ void ChatDock::_add_log(const String &p_text) {
 }
 
 void ChatDock::_on_request_failed(const String &p_error) {
-	OpenAIRequest *request = Object::cast_to<OpenAIRequest>(get_child(get_child_count() - 1));
+	AnthropicRequest *request = Object::cast_to<AnthropicRequest>(get_child(get_child_count() - 1));
 	if (request) {
 		request->queue_free();
 	}

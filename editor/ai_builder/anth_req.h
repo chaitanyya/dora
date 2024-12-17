@@ -1,0 +1,25 @@
+#ifndef ANTHROPIC_REQUEST_H
+#define ANTHROPIC_REQUEST_H
+
+#include "scene/main/node.h"
+#include "scene/main/http_request.h"
+
+class AnthropicRequest : public Node {
+    GDCLASS(AnthropicRequest, Node);
+
+private:
+    HTTPRequest* http_request;
+    String api_key;
+
+    void _on_request_completed(int p_result, int p_code, const PackedStringArray& headers, const PackedByteArray& p_data);
+
+protected:
+    static void _bind_methods();
+
+public:
+    AnthropicRequest();
+    Error request_scene(const String& prompt, const Dictionary& project_resources, const Dictionary& current_scene);
+    void set_api_key(const String& key);
+};
+
+#endif // Anthropic_REQUEST_H

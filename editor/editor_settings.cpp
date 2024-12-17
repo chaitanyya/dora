@@ -487,6 +487,9 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
     // AI settings
     _initial_set("artifical_intelligence/models/openai/api_key", "", true);
     EDITOR_SETTING_BASIC(Variant::STRING, PROPERTY_HINT_ENUM, "artifical_intelligence/models/openai/model", "gpt-4o-mini", "gpt-4,gpt-4o,gpt-4o-mini");
+    
+    _initial_set("artifical_intelligence/models/anthropic/api_key", "", true);
+    EDITOR_SETTING_BASIC(Variant::STRING, PROPERTY_HINT_ENUM, "artifical_intelligence/models/anthropic/model", "claude-3-5-sonnet-20241022", "claude-3-5-sonnet-20241022");
 
 
 	_initial_set("interface/editor/keep_screen_on", false, true);
