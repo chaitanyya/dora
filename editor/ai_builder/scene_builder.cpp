@@ -188,6 +188,7 @@ void SceneBuilder::_setup_tilemap(TileMapLayer *tilemaplayer, const Dictionary &
     ERR_FAIL_NULL(tilemaplayer);
 
     // Create and set up tileset
+    // FIXME: The tileset is being created but is not displayed in the editor.
     if (props.has("tile_set")) {
         Dictionary tileset_props = props["tile_set"];
         Ref<TileSet> tileset;
@@ -199,9 +200,6 @@ void SceneBuilder::_setup_tilemap(TileMapLayer *tilemaplayer, const Dictionary &
         Vector2i tile_size = Vector2i(tile_width, tile_height);
 
         tileset->set_tile_size(Vector2(tile_size));
-        tilemaplayer->set_tile_set(tileset);
-
-        print_line("Setting tile set for tilemap layer");
 
         if (tileset_props.has("texture")) {
             String texture_path = tileset_props["texture"];
@@ -212,13 +210,15 @@ void SceneBuilder::_setup_tilemap(TileMapLayer *tilemaplayer, const Dictionary &
             Ref<TileSetAtlasSource> atlas_source;
             atlas_source.instantiate();
             atlas_source->set_texture(texture);
-            
             atlas_source->set_texture_region_size(tile_size);
-    
-            // Add source to tileset
-            tileset->add_source(atlas_source);
+
+            // Add source to tileset and verify
+            int source_id = tileset->add_source(atlas_source);
+            print_line("Added atlas source with ID: ", source_id);
+
+            tileset->emit_changed();
         }
-        
+        tilemaplayer->set_tile_set(tileset);
     }
 }
 
