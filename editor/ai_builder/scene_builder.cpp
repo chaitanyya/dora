@@ -188,7 +188,7 @@ void SceneBuilder::_setup_tilemap(TileMapLayer *tilemaplayer, const Dictionary &
     ERR_FAIL_NULL(tilemaplayer);
 
     // Create and set up tileset
-    // FIXME: The tileset is being created but is not displayed in the editor.
+    // FIXME: The tileset is being created but is not displayed in the editor.3
     if (props.has("tile_set")) {
         Dictionary tileset_props = props["tile_set"];
         Ref<TileSet> tileset;
