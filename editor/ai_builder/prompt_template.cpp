@@ -24,8 +24,13 @@ Below are the valid Node class_name, you must not use any other node types if yo
 - Camera2D
 - TileMapLayer
 
+You are provided with game assets as project resources and the current nodes selected in the scene. If provided use this context when answering the user's query.
+
 Project Resources:
 {0}
+
+Current Nodes Selected:
+{1}
 
 Return only the JSON response, without additional commentary.
 
@@ -33,7 +38,7 @@ EXAMPLE INSTRUCTIONS REQUESTS AND RESPONSES:
 
 Request: A small hero character that can move around
 Response: {
-    "message": "[b]Task:[/b] Create a small hero character.\n[b]Details:[/b]\n- Add a [code]CharacterBody2D[/code] node.\n- Set up an [code]AnimatedSprite2D[/code] node with hero animations.\n- Attach a script for movement and jumping.\n- Configure collision detection using a [code]CollisionShape2D[/code] node.",
+    "message": "Create a small hero character.\n[b]Details:[/b]\n- Add a [code]CharacterBody2D[/code] node.\n- Set up an [code]AnimatedSprite2D[/code] node with hero animations.\n- Attach a script for movement and jumping.\n- Configure collision detection using a [code]CollisionShape2D[/code] node.",
     "tasks": [
         {
             "action": "create_node",
@@ -109,7 +114,7 @@ Response: {
 
 Request: Create a camera for the scene
 Response: {
-    "message": "[b]Task:[/b] Create a camera for the scene.\n[b]Details:[/b]\n- Add a [code]Camera2D[/code] node.\n- Configure the position and zoom settings.",
+    "message": "Create a camera for the scene.\n[b]Details:[/b]\n- Add a [code]Camera2D[/code] node.\n- Configure the position and zoom settings.",
     "tasks": [
         {
             "action": "create_node",
@@ -129,7 +134,7 @@ Response: {
 
 Request: Create a map layer with tileset
 Response: {
-    "message": "[b]Task:[/b] Create a tilemap layer with a tileset.\n[b]Details:[/b]\n- Add a [code]TileMapLayer[/code] node.\n- Configure the tileset texture and tile dimensions.",
+    "message": "Create a tilemap layer with a tileset.\n[b]Details:[/b]\n- Add a [code]TileMapLayer[/code] node.\n- Configure the tileset texture and tile dimensions.",
     "tasks": [
         {
             "action": "create_node",
@@ -152,7 +157,7 @@ Response: {
 
 Request: Create a ground for the hero with world boundary
 Response: {
-    "message": "[b]Task:[/b] Create ground for the hero with a world boundary.\n[b]Details:[/b]\n- Add a [code]StaticBody2D[/code] node for the ground.\n- Create a [code]CollisionShape2D[/code] node with a [code]WorldBoundaryShape2D[/code].",
+    "message": "Create ground for the hero with a world boundary.\n[b]Details:[/b]\n- Add a [code]StaticBody2D[/code] node for the ground.\n- Create a [code]CollisionShape2D[/code] node with a [code]WorldBoundaryShape2D[/code].",
     "tasks": [
         {
             "action": "create_node",
@@ -175,9 +180,9 @@ Response: {
 }
 )";
 
-String AIPromptTemplate::format_prompt(const Dictionary& project_resources, const Dictionary& current_scene) {
+String AIPromptTemplate::format_prompt(const Dictionary& project_resources, const Dictionary& current_nodes) {
     String formatted = String(SYSTEM_PROMPT);
     formatted = formatted.replace("{0}", JSON::stringify(project_resources));
-    formatted = formatted.replace("{1}", JSON::stringify(current_scene));
+    formatted = formatted.replace("{1}", JSON::stringify(current_nodes));
     return formatted;
 }

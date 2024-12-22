@@ -6,7 +6,7 @@
 
 namespace AIPromptTemplate {
     extern const char* SYSTEM_PROMPT;
-    String format_prompt(const Dictionary& project_resources, const Dictionary& current_scene);
+    String format_prompt(const Dictionary& project_resources, const Dictionary& current_nodes);
 };
 
 #endif

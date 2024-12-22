@@ -89,42 +89,67 @@ void ChatDock::gather_project_resources(Dictionary &p_resources) {
 	p_resources["other"] = other_resources;
 }
 
-void ChatDock::gather_current_scene_info(Dictionary &p_scene_info) {
-	Node *edited_scene = get_tree()->get_edited_scene_root();
-	if (!edited_scene)
-		return;
+Dictionary ChatDock::gather_node_info(Node *p_node) {
+	Dictionary node_info;
 
-	// Helper function to recursively gather node information
-	std::function<Dictionary(Node *)> gather_node_info = [&](Node *p_node) -> Dictionary {
-		Dictionary node_info;
-		node_info["name"] = p_node->get_name();
-		node_info["class_name"] = p_node->get_class();
-
-		// Get node properties
-		List<PropertyInfo> props;
-		p_node->get_property_list(&props);
-		Dictionary properties;
-		for (const PropertyInfo &E : props) {
-			if (!(E.usage & PROPERTY_USAGE_STORAGE)) {
-				continue;
-			}
-			properties[E.name] = p_node->get(E.name);
-		}
-
-		node_info["properties"] = properties;
-
-		// Gather child nodes
-		Array children;
-		for (int i = 0; i < p_node->get_child_count(); i++) {
-			children.push_back(gather_node_info(p_node->get_child(i)));
-		}
-		node_info["children"] = children;
-
+	if (!p_node) {
 		return node_info;
-	};
+	}
 
-	p_scene_info["root"] = gather_node_info(edited_scene);
-	p_scene_info["scene_file"] = edited_scene->get_scene_file_path();
+	node_info["name"] = p_node->get_name();
+	node_info["class"] = p_node->get_class();
+	node_info["path"] = p_node->get_path();
+
+	List<PropertyInfo> props;
+	p_node->get_property_list(&props);
+	Dictionary properties;
+
+	for (const PropertyInfo &E : props) {
+		if (!(E.usage & PROPERTY_USAGE_STORAGE)) {
+			continue;
+		}
+
+		Variant value = p_node->get(E.name);
+
+		// Handle special property types
+		if (value.get_type() == Variant::OBJECT) {
+			Object *obj = value;
+			if (obj) {
+				Resource *res = Object::cast_to<Resource>(obj);
+				if (res && !res->get_path().is_empty()) {
+					properties[E.name] = res->get_path();
+					continue;
+				}
+				Node *node_ref = Object::cast_to<Node>(obj);
+				if (node_ref) {
+					properties[E.name] = p_node->get_path_to(node_ref);
+					continue;
+				}
+			}
+		}
+
+		properties[E.name] = value;
+	}
+
+	node_info["properties"] = properties;
+
+	Array groups;
+	List<Node::GroupInfo> group_info;
+	p_node->get_groups(&group_info);
+	for (const Node::GroupInfo &E : group_info) {
+		if (E.persistent) {
+			groups.push_back(E.name);
+		}
+	}
+	node_info["groups"] = groups;
+
+	Array children;
+	for (int i = 0; i < p_node->get_child_count(); i++) {
+		children.push_back(gather_node_info(p_node->get_child(i)));
+	}
+	node_info["children"] = children;
+
+	return node_info;
 }
 
 void ChatDock::_text_submitted(const String &p_text) {
@@ -136,21 +161,25 @@ void ChatDock::_text_submitted(const String &p_text) {
 	_add_log("Sending request to LLM");
 
 	Dictionary project_resources;
-	Dictionary current_scene;
+	Dictionary current_nodes;
 
 	gather_project_resources(project_resources);
-	gather_current_scene_info(current_scene);
 
-	// log all animations that are available in the scene;
+	for (const Variant &node_var : selected_nodes) {
+		Node *selected_node = Object::cast_to<Node>(node_var);
+		if (selected_node) {
+			current_nodes[selected_node->get_name()] = gather_node_info(selected_node);
+		}
+	}
 
-	OpenAIRequest *oai_request = memnew (OpenAIRequest);
+	OpenAIRequest *oai_request = memnew(OpenAIRequest);
 	add_child(oai_request);
 
 	oai_request->connect("scene_received", callable_mp(this, &ChatDock::_on_response_received));
 	oai_request->connect("request_failed", callable_mp(this, &ChatDock::_on_request_failed));
 
 	// Defer the request to ensure we're in the scene trewe
-	oai_request->call_deferred("request_scene", p_text, project_resources, current_scene);
+	oai_request->call_deferred("request_scene", p_text, project_resources, current_nodes);
 
 	input_field->set_text("");
 }
@@ -244,8 +273,8 @@ void ChatDock::_add_message(const String &p_text, MessageType p_type, const Arra
 		Button *apply_button = memnew(Button);
 		apply_button->set_text("Apply Changes");
 		apply_button->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
-	    apply_button->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
-	    apply_button->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
+		apply_button->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
+		apply_button->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
 		apply_button->set_h_size_flags(SIZE_SHRINK_END);
 		apply_button->connect(SceneStringName(pressed), callable_mp(this, &ChatDock::_process_scene_changes).bind(p_tasks));
 		header_hbox->add_child(apply_button);
@@ -264,7 +293,7 @@ void ChatDock::_add_message(const String &p_text, MessageType p_type, const Arra
 	msg_label->set_selection_enabled(true);
 	msg_label->set_h_size_flags(SIZE_EXPAND_FILL);
 	msg_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
-    msg_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
+	msg_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
 	msg_label->set_custom_minimum_size(Size2(100, 0));
 	msg_label->set_fit_content(true);
 	msg_label->set_scroll_active(false);
@@ -315,7 +344,7 @@ void ChatDock::_update_selected_node_label() {
 	node_pill->add_child(pills_container);
 
 	EditorSelection *editor_selection = EditorNode::get_singleton()->get_editor_selection();
-	Array selected_nodes = editor_selection->get_selected_nodes();
+	selected_nodes = editor_selection->get_selected_nodes();
 
 	static Ref<StyleBoxFlat> pill_style;
 	if (pill_style.is_null()) {
@@ -409,7 +438,7 @@ ChatDock::ChatDock() {
 	input_container->add_theme_style_override("panel", input_style);
 
 	VBoxContainer *input_vbox = memnew(VBoxContainer);
-	input_vbox->set_v_size_flags(SIZE_SHRINK_END); // Make vbox shrink to fit content
+	input_vbox->set_v_size_flags(SIZE_SHRINK_END);
 	input_container->add_child(input_vbox);
 
 	node_pill = memnew(HBoxContainer);

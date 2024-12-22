@@ -26,8 +26,9 @@ private:
 
     void _update_selected_node_label();
     void _on_selection_changed();
-    
+
     HBoxContainer *node_pill = nullptr;
+    TypedArray<Node> selected_nodes;
 
 	void _text_submitted(const String &p_text);
 	void _on_response_received(const Dictionary &p_scene_data);
@@ -35,7 +36,7 @@ private:
 	void _process_scene_changes(const Array &p_tasks);
 
 	void gather_project_resources(Dictionary &p_resources);
-	void gather_current_scene_info(Dictionary &p_scene_info);
+	Dictionary gather_node_info(Node* p_node);
 
 	void _add_message(const String &p_text, MessageType p_type, const Array &p_tasks);
 	void _add_log(const String &p_text);
