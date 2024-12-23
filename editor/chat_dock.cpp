@@ -262,7 +262,7 @@ void ChatDock::_add_message(const String &p_text, MessageType p_type, const Arra
 
 	// Sender label
 	Label *sender_label = memnew(Label);
-	sender_label->set_text(p_type == MESSAGE_USER ? "USER" : "SYSTEM");
+	sender_label->set_text(p_type == MESSAGE_USER ? "USER" : "DORA AI");
 	sender_label->add_theme_font_size_override("font_size", get_theme_font_size("font_size") * 0.8);
 	sender_label->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
 	sender_label->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
@@ -441,8 +441,24 @@ ChatDock::ChatDock() {
 	input_vbox->set_v_size_flags(SIZE_SHRINK_END);
 	input_container->add_child(input_vbox);
 
+    HBoxContainer *header_hbox = memnew(HBoxContainer);
+    header_hbox->set_h_size_flags(SIZE_EXPAND_FILL);
+    input_vbox->add_child(header_hbox);
+
 	node_pill = memnew(HBoxContainer);
-	input_vbox->add_child(node_pill);
+    node_pill->set_h_size_flags(SIZE_EXPAND_FILL);
+    header_hbox->add_child(node_pill);
+
+    Button *clear_button = memnew(Button);
+    clear_button->set_focus_mode(Control::FOCUS_NONE);
+    clear_button->set_text("Clear Chat");
+    clear_button->add_theme_font_size_override("font_size", 18);
+	clear_button->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
+	clear_button->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
+    clear_button->connect(SceneStringName(pressed), callable_mp(this, &ChatDock::clear));
+    header_hbox->add_child(clear_button);
+	
+    input_vbox->add_child(header_hbox);
 
 	// Connect to editor selection changes
 	EditorSelection *editor_selection = EditorNode::get_singleton()->get_editor_selection();
@@ -467,4 +483,14 @@ ChatDock::ChatDock() {
 	input_vbox->add_child(input_field);
 
 	add_child(input_container);
+}
+
+void ChatDock::clear() {
+    for (int i = message_container->get_child_count() - 1; i >= 0; i--) {
+        Node *child = message_container->get_child(i);
+        message_container->remove_child(child);
+        child->queue_free();
+    }
+
+    messages.clear();
 }

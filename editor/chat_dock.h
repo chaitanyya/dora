@@ -42,6 +42,8 @@ private:
 	void _add_log(const String &p_text);
 	void _text_editor_gui_input(const Ref<InputEvent> &p_event);
 
+    void clear();
+
 protected:
 	static void _bind_methods();
 
