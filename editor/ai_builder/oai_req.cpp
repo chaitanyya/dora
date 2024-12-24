@@ -4,10 +4,30 @@
 #include "prompt_template.h"
 #include "editor/editor_settings.h"
 
+void OpenAIRequest::_init_base_request() {
+    base_request_data.clear();
+    base_request_data["model"] = EditorSettings::get_singleton()->get("artifical_intelligence/models/openai/model");
+    base_request_data["temperature"] = 0.2;
+    base_request_data["max_tokens"] = 2048;
+    base_request_data["top_p"] = 1;
+    base_request_data["frequency_penalty"] = 0;
+    base_request_data["presence_penalty"] = 0;
+    
+    Dictionary response_format;
+    response_format["type"] = "json_object";
+
+    base_request_data["response_format"] = response_format;
+}
+
+void OpenAIRequest::clear_message_history() {
+    message_history.clear();
+}
+
 OpenAIRequest::OpenAIRequest() {
     http_request = memnew(HTTPRequest);
     add_child(http_request);
     http_request->set_use_threads(true);
+    message_history = Array();
 
     // Connect signal immediately instead of deferring
     print_line("Connecting request_completed signal...");
@@ -21,83 +41,66 @@ OpenAIRequest::OpenAIRequest() {
     String stored_key = EditorSettings::get_singleton()->get("artifical_intelligence/models/openai/api_key");
     if (!stored_key.is_empty()) {
         set_api_key(stored_key);
-        print_line("API key loaded from editor settings");
     } else {
         WARN_PRINT("OpenAI API key not found. Please set it in Editor Settings -> Artifical Intelligence -> Models -> OpenAI");
     }
 }
 
-Error OpenAIRequest::request_scene(const String& prompt, const Dictionary& project_resources, const Dictionary& current_scene) {
-    // Prepare headers
-    Vector<String> headers;
-    headers.push_back("Content-Type: application/json");
-    headers.push_back("Authorization: Bearer " + api_key);
+Dictionary OpenAIRequest::_create_message(const String& role, const String& text) const {
+    Dictionary message;
+    message["role"] = role;
+    message["content"] = _create_message_content(text);
+    return message;
+}
 
-    // Prepare request body
-    Dictionary request_data;
-    request_data["model"] = EditorSettings::get_singleton()->get("artifical_intelligence/models/openai/model");
-
-    Array messages;
-    Dictionary system_message;
-    system_message["role"] = "system";
-    
+Array OpenAIRequest::_create_message_content(const String& text) const {
     Array content;
     Dictionary content_item;
     content_item["type"] = "text";
-    content_item["text"] = AIPromptTemplate::format_prompt(project_resources, current_scene);
+    content_item["text"] = text;
     content.push_back(content_item);
+    return content;
+}
 
-    system_message["content"] = content;
-    messages.push_back(system_message);
+Error OpenAIRequest::request_scene(const String& prompt, const Dictionary& project_resources, const Dictionary& current_scene) {
+    if (base_request_data.is_empty()) {
+        _init_base_request();
+    }
 
-    Dictionary user_message;
-    user_message["role"] = "user";
+    Dictionary request_data = base_request_data;
+    Dictionary user_message = _create_message("user", prompt);
     
-    Array user_content;
-    Dictionary user_content_item;
-    user_content_item["type"] = "text";
-    user_content_item["text"] = prompt;
-    user_content.push_back(user_content_item);
+    // Check if we need to add system message
+    if (message_history.is_empty()) {
+        message_history.push_back(_create_message("system", AIPromptTemplate::format_prompt(project_resources, current_scene)));
+    }
     
-    user_message["content"] = user_content;
-    messages.push_back(user_message);
+    message_history.push_back(user_message);
+    request_data["messages"] = message_history;
 
-    request_data["messages"] = messages;
+    static Vector<String> headers = {
+        "Content-Type: application/json",
+        "Authorization: Bearer " + api_key
+    };
 
-    // Add additional parameters
-    request_data["temperature"] = 0.2;
-    request_data["max_tokens"] = 2048;
-    request_data["top_p"] = 1;
-    request_data["frequency_penalty"] = 0;
-    request_data["presence_penalty"] = 0;
-
-    Dictionary response_format;
-    response_format["type"] = "json_object"; // Ensure this matches the expected format
-    request_data["response_format"] = response_format;
-
-    String json_str = JSON::stringify(request_data);
-    
-    // Make request
     Error err = http_request->request(
         "https://api.openai.com/v1/chat/completions",
         headers,
         HTTPClient::METHOD_POST,
-        json_str
+        JSON::stringify(request_data)
     );
 
-    if (err != OK) {
+    if (err == OK) {
+        print_line("HTTP request initiated successfully");
+    } else {
         WARN_PRINT("Failed to send HTTP request: " + itos(err));
         emit_signal("request_failed", "Failed to send request");
-    } else {
-        print_line("HTTP request initiated successfully");
     }
 
     return err;
 }
 
 void OpenAIRequest::_on_request_completed(int p_result, int p_code, const PackedStringArray& headers, const PackedByteArray& p_data) {
-    print_line("Request completed with result code: " + itos(p_code));
-
     if (p_result != HTTPRequest::RESULT_SUCCESS) {
         emit_signal("request_failed", "HTTP Request failed");
         return;
@@ -136,7 +139,6 @@ void OpenAIRequest::_on_request_completed(int p_result, int p_code, const Packed
         return;
     }
     
-    // Parse the JSON content string into a Dictionary
     Error scene_json_err = json.parse(content);
     if (scene_json_err != OK) {
         emit_signal("request_failed", "Scene JSON parse error");
@@ -148,6 +150,8 @@ void OpenAIRequest::_on_request_completed(int p_result, int p_code, const Packed
 
     print_line("Response Data:");
     print_line(JSON::stringify(scene_data));
+
+    message_history.push_back(_create_message("assistant", JSON::stringify(scene_data)));
 }
 
 void OpenAIRequest::set_api_key(const String& key) {

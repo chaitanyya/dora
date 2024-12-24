@@ -114,12 +114,14 @@ Dictionary ChatDock::gather_node_info(Node *p_node) {
 		// Handle special property types
 		if (value.get_type() == Variant::OBJECT) {
 			Object *obj = value;
+
 			if (obj) {
 				Resource *res = Object::cast_to<Resource>(obj);
 				if (res && !res->get_path().is_empty()) {
 					properties[E.name] = res->get_path();
 					continue;
 				}
+
 				Node *node_ref = Object::cast_to<Node>(obj);
 				if (node_ref) {
 					properties[E.name] = p_node->get_path_to(node_ref);
@@ -158,7 +160,7 @@ void ChatDock::_text_submitted(const String &p_text) {
 	}
 
 	_add_message(p_text, MESSAGE_USER, Array());
-	_add_log("Sending request to LLM");
+	_add_log("Sending request to AI");
 
 	Dictionary project_resources;
 	Dictionary current_nodes;
@@ -172,15 +174,8 @@ void ChatDock::_text_submitted(const String &p_text) {
 		}
 	}
 
-	OpenAIRequest *oai_request = memnew(OpenAIRequest);
-	add_child(oai_request);
-
-	oai_request->connect("scene_received", callable_mp(this, &ChatDock::_on_response_received));
-	oai_request->connect("request_failed", callable_mp(this, &ChatDock::_on_request_failed));
-
-	// Defer the request to ensure we're in the scene trewe
+	// Use existing oai_request instead of creating new one
 	oai_request->call_deferred("request_scene", p_text, project_resources, current_nodes);
-
 	input_field->set_text("");
 }
 
@@ -441,24 +436,24 @@ ChatDock::ChatDock() {
 	input_vbox->set_v_size_flags(SIZE_SHRINK_END);
 	input_container->add_child(input_vbox);
 
-    HBoxContainer *header_hbox = memnew(HBoxContainer);
-    header_hbox->set_h_size_flags(SIZE_EXPAND_FILL);
-    input_vbox->add_child(header_hbox);
+	HBoxContainer *header_hbox = memnew(HBoxContainer);
+	header_hbox->set_h_size_flags(SIZE_EXPAND_FILL);
+	input_vbox->add_child(header_hbox);
 
 	node_pill = memnew(HBoxContainer);
-    node_pill->set_h_size_flags(SIZE_EXPAND_FILL);
-    header_hbox->add_child(node_pill);
+	node_pill->set_h_size_flags(SIZE_EXPAND_FILL);
+	header_hbox->add_child(node_pill);
 
-    Button *clear_button = memnew(Button);
-    clear_button->set_focus_mode(Control::FOCUS_NONE);
-    clear_button->set_text("Clear Chat");
-    clear_button->add_theme_font_size_override("font_size", 18);
+	Button *clear_button = memnew(Button);
+	clear_button->set_focus_mode(Control::FOCUS_NONE);
+	clear_button->set_text("Clear Chat");
+	clear_button->add_theme_font_size_override("font_size", 18);
 	clear_button->add_theme_color_override("font_color", Color(0.6, 0.6, 0.6));
 	clear_button->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
-    clear_button->connect(SceneStringName(pressed), callable_mp(this, &ChatDock::clear));
-    header_hbox->add_child(clear_button);
-	
-    input_vbox->add_child(header_hbox);
+	clear_button->connect(SceneStringName(pressed), callable_mp(this, &ChatDock::clear));
+	header_hbox->add_child(clear_button);
+
+	input_vbox->add_child(header_hbox);
 
 	// Connect to editor selection changes
 	EditorSelection *editor_selection = EditorNode::get_singleton()->get_editor_selection();
@@ -482,15 +477,22 @@ ChatDock::ChatDock() {
 	input_field->connect("gui_input", callable_mp(this, &ChatDock::_text_editor_gui_input));
 	input_vbox->add_child(input_field);
 
+	oai_request = memnew(OpenAIRequest);
+	add_child(oai_request);
+	oai_request->connect("scene_received", callable_mp(this, &ChatDock::_on_response_received));
+	oai_request->connect("request_failed", callable_mp(this, &ChatDock::_on_request_failed));
+
 	add_child(input_container);
 }
 
 void ChatDock::clear() {
-    for (int i = message_container->get_child_count() - 1; i >= 0; i--) {
-        Node *child = message_container->get_child(i);
-        message_container->remove_child(child);
-        child->queue_free();
-    }
+	for (int i = message_container->get_child_count() - 1; i >= 0; i--) {
+		Node *child = message_container->get_child(i);
+		message_container->remove_child(child);
+		child->queue_free();
+	}
 
-    messages.clear();
+	if (oai_request) {
+		oai_request->clear_message_history(); // Clear AI history when chat is cleared
+	}
 }

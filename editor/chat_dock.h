@@ -5,6 +5,7 @@
 #include "scene/gui/rich_text_label.h"
 #include "scene/gui/text_edit.h"
 #include "editor/editor_node.h"
+#include "ai_builder/oai_req.h"
 
 class ChatDock : public VBoxContainer {
 	GDCLASS(ChatDock, VBoxContainer);
@@ -14,8 +15,8 @@ private:
 	ScrollContainer *scroll_container;
 	VBoxContainer *message_container;
 	TextEdit *input_field = nullptr;
-	Vector<String> messages;
     EditorSelection* editor_selection;
+    OpenAIRequest* oai_request = nullptr;
 
 	enum MessageType {
 		MESSAGE_USER,
